@@ -20,7 +20,7 @@ android {
         }
     }
 
-    // simple-xml 会带进 stax / xpp3，在 Android 上冲突，必须排除；okhttp 锁版本与原项目一致
+    // simple-xml 会带入 stax / xpp3，在 Android 上冲突，必须排除；okhttp 锁版本与原项目一致
     configurations.configureEach {
         exclude group: 'stax', module: 'stax-api'
         exclude group: 'xpp3', module: 'xpp3'
