@@ -84,17 +84,22 @@ abstract class BaseConfig {
 
     protected void loadConfig(int id, Config config, Callback callback) {
         try {
+            android.util.Log.d("VodPlugin", "loadConfig 1/4 Server.start...");
             Server.get().start();
+            android.util.Log.d("VodPlugin", "loadConfig 2/4 OkHttp.cancel + 下载订阅...");
             OkHttp.cancel(getTag());
             load(config);
+            android.util.Log.d("VodPlugin", "loadConfig 3/4 订阅下载解析完成");
             if (taskId.get() != id) return;
             if (config.equals(this.config)) config.update();
+            android.util.Log.d("VodPlugin", "loadConfig 4/4 回调 success");
             App.post(callback::success);
         } catch (Throwable e) {
             android.util.Log.e("VodPlugin", "loadConfig failed", e);
             if (isCanceled(e)) return;
             if (taskId.get() != id) return;
             String msg = e.getClass().getSimpleName() + ": " + (e.getMessage() != null ? e.getMessage() : "no message");
+            android.util.Log.d("VodPlugin", "loadConfig 回调 error: " + msg);
             App.post(() -> callback.error(msg));
         } finally {
             if (taskId.get() == id) postEvent();

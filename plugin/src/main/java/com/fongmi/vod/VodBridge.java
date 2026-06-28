@@ -40,23 +40,28 @@ public class VodBridge {
     public static void init(JsonObject args, UniJSCallback cb) {
         invoke(() -> {
             String url = Json.safeString(args, "url");
+            android.util.Log.d("VodPlugin", "Bridge.init url=" + url);
             if (TextUtils.isEmpty(url)) {
                 cb.invoke(error(-1, "need url"));
                 return;
             }
             Config config = Config.vod().url(url);
+            android.util.Log.d("VodPlugin", "Bridge.init 调用 VodConfig.load...");
             VodConfig.load(config, new Callback() {
                 @Override
                 public void start() {
+                    android.util.Log.d("VodPlugin", "Bridge.init Callback.start");
                 }
 
                 @Override
                 public void success() {
+                    android.util.Log.d("VodPlugin", "Bridge.init Callback.success, sites=" + VodConfig.get().getSites().size());
                     cb.invoke(ok(new JsonObject()));
                 }
 
                 @Override
                 public void error(String msg) {
+                    android.util.Log.e("VodPlugin", "Bridge.init Callback.error: " + msg);
                     cb.invoke(VodBridge.error(-2, msg));
                 }
             });
