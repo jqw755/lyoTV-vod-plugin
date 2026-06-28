@@ -4,13 +4,8 @@ import android.text.TextUtils;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.room.Entity;
-import androidx.room.Ignore;
-import androidx.room.Index;
-import androidx.room.PrimaryKey;
 
 import com.fongmi.vod.App;
-import com.fongmi.vod.db.AppDatabase;
 import com.github.catvod.utils.Prefers;
 import com.google.gson.annotations.SerializedName;
 import com.google.gson.reflect.TypeToken;
@@ -19,10 +14,12 @@ import java.lang.reflect.Type;
 import java.util.Collections;
 import java.util.List;
 
-@Entity(indices = @Index(value = {"url", "type"}, unique = true))
+/**
+ * 插件版 Config：原 fongmi 是 Room @Entity，靠 AppDatabase 持久化站点订阅。
+ * 插件无数据库（前端自存），所有读写库的方法降级为内存对象 / 空操作，仅保留站点加载链路用到的字段与工厂方法。
+ */
 public class Config {
 
-    @PrimaryKey(autoGenerate = true)
     @SerializedName("id")
     private int id;
     @SerializedName("type")
@@ -42,10 +39,8 @@ public class Config {
     @SerializedName("parse")
     private String parse;
 
-    @Ignore
     @SerializedName("notice")
     private String notice;
-    @Ignore
     @SerializedName("danmaku")
     private String danmaku;
 
@@ -71,49 +66,43 @@ public class Config {
         return new Config().type(type).url(url).name(name).insert();
     }
 
+    /** 插件无数据库：返回空列表，前端自行管理多订阅。 */
     public static List<Config> getAll(int type) {
-        return AppDatabase.get().getConfigDao().findByType(type);
+        return Collections.emptyList();
     }
 
     public static List<Config> findUrls() {
-        return AppDatabase.get().getConfigDao().findUrlByType(0);
+        return Collections.emptyList();
     }
 
     public static void delete(String url) {
-        AppDatabase.get().getConfigDao().delete(url);
     }
 
     public static void delete(String url, int type) {
-        AppDatabase.get().getConfigDao().delete(url, type);
     }
 
     public static Config vod() {
-        Config item = AppDatabase.get().getConfigDao().findOne(0);
-        return item == null ? create(0) : item;
+        return new Config().type(0);
     }
 
     public static Config live() {
-        Config item = AppDatabase.get().getConfigDao().findOne(1);
-        return item == null ? create(1) : item;
+        return new Config().type(1);
     }
 
     public static Config wall() {
-        Config item = AppDatabase.get().getConfigDao().findOne(2);
-        return item == null ? create(2) : item;
+        return new Config().type(2);
     }
 
     public static Config find(int id) {
-        return AppDatabase.get().getConfigDao().findById(id);
+        return new Config().type(0);
     }
 
     public static Config find(String url, int type) {
-        Config item = AppDatabase.get().getConfigDao().find(url, type);
-        return item == null ? create(type, url) : item.type(type);
+        return new Config().type(type).url(url);
     }
 
     public static Config find(String url, String name, int type) {
-        Config item = AppDatabase.get().getConfigDao().find(url, type);
-        return item == null ? create(type, url, name) : item.type(type).name(name);
+        return new Config().type(type).url(url).name(name);
     }
 
     public static Config find(Config config) {
@@ -121,13 +110,11 @@ public class Config {
     }
 
     public static Config find(Config config, int type) {
-        Config item = AppDatabase.get().getConfigDao().find(config.getUrl(), type);
-        return item == null ? create(type, config.getUrl(), config.getName()) : item.type(type).name(config.getName());
+        return new Config().type(type).url(config.getUrl()).name(config.getName());
     }
 
     public static Config find(Depot depot, int type) {
-        Config item = AppDatabase.get().getConfigDao().find(depot.getUrl(), type);
-        return item == null ? create(type, depot.getUrl(), depot.getName()) : item.type(type).name(depot.getName());
+        return new Config().type(type).url(depot.getUrl()).name(depot.getName());
     }
 
     public int getId() {
@@ -248,15 +235,13 @@ public class Config {
         return "";
     }
 
+    /** 插件无数据库：insert 不再生成主键，仅返回自身。 */
     public Config insert() {
-        if (isEmpty()) return this;
-        setId(Math.toIntExact(AppDatabase.get().getConfigDao().insert(this)));
         return this;
     }
 
+    /** 插件无数据库：save 为空操作，仅保留链式返回。 */
     public Config save() {
-        if (isEmpty()) return this;
-        AppDatabase.get().getConfigDao().insertOrUpdate(this);
         return this;
     }
 
@@ -268,7 +253,6 @@ public class Config {
     }
 
     public void delete() {
-        AppDatabase.get().getConfigDao().delete(getUrl(), getType());
     }
 
     @NonNull

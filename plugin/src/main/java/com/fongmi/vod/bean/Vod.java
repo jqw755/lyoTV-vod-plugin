@@ -71,7 +71,9 @@ public class Vod implements Parcelable, Diffable<Vod> {
     @SerializedName("action")
     private String action;
     @SerializedName("cate")
+    private Cate cate;
     @SerializedName("style")
+    private Style style;
     @SerializedName("land")
     private Integer land;
     @SerializedName("circle")
@@ -104,6 +106,8 @@ public class Vod implements Parcelable, Diffable<Vod> {
         this.land = (Integer) in.readValue(Integer.class.getClassLoader());
         this.circle = (Integer) in.readValue(Integer.class.getClassLoader());
         this.ratio = (Float) in.readValue(Float.class.getClassLoader());
+        this.cate = in.readParcelable(Cate.class.getClassLoader());
+        this.style = in.readParcelable(Style.class.getClassLoader());
         this.vodFlags = in.createTypedArrayList(Flag.CREATOR);
         this.site = in.readParcelable(Site.class.getClassLoader());
     }
@@ -203,13 +207,25 @@ public class Vod implements Parcelable, Diffable<Vod> {
         return TextUtils.isEmpty(action) ? "" : action;
     }
 
-
-    public Style getStyle() {
-        return null;
+    public Cate getCate() {
+        return cate;
     }
 
+    public Style getStyle() {
+        return style != null ? style : Style.get(getLand(), getCircle(), getRatio());
+    }
 
+    public int getLand() {
+        return land == null ? 0 : land;
+    }
 
+    public int getCircle() {
+        return circle == null ? 0 : circle;
+    }
+
+    public float getRatio() {
+        return ratio == null ? 0 : ratio;
+    }
 
     public List<Flag> getFlags() {
         return vodFlags = vodFlags == null ? new ArrayList<>() : vodFlags;
@@ -252,7 +268,7 @@ public class Vod implements Parcelable, Diffable<Vod> {
     }
 
     public boolean isFolder() {
-        return "folder".equals(getTag()) ;
+        return "folder".equals(getTag()) || getCate() != null;
     }
 
     public boolean isAction() {
@@ -268,7 +284,7 @@ public class Vod implements Parcelable, Diffable<Vod> {
     }
 
     public Style getStyle(Style style) {
-        return null;
+        return getStyle() != null ? getStyle() : style != null ? style : Style.rect();
     }
 
     public Vod setFlags() {

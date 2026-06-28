@@ -65,7 +65,7 @@ public class Filter implements Parcelable {
     }
 
     public String setSelected(String v) {
-        getValue().stream().filter(item -> item.equals(v)).findFirst().ifPresent(item -> item.setSelected(true));
+        for (String item : getValue()) if (item.equals(v)) return v;
         return v;
     }
 

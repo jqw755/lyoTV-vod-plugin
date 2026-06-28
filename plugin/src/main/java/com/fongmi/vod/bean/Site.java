@@ -6,14 +6,9 @@ import android.text.TextUtils;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.room.Entity;
-import androidx.room.Ignore;
-import androidx.room.PrimaryKey;
 
 import com.fongmi.vod.App;
-
 import com.fongmi.vod.api.loader.BaseLoader;
-import com.fongmi.vod.db.AppDatabase;
 import com.fongmi.vod.gson.ExtAdapter;
 import com.fongmi.vod.gson.HeaderAdapter;
 import com.fongmi.vod.utils.UrlUtil;
@@ -31,52 +26,40 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
-@Entity
 public class Site implements Parcelable {
 
     @NonNull
-    @PrimaryKey
     @SerializedName("key")
     private String key;
 
-    @Ignore
     @SerializedName("name")
     private String name;
 
-    @Ignore
     @SerializedName("api")
     private String api;
 
-    @Ignore
     @SerializedName("ext")
     @JsonAdapter(ExtAdapter.class)
     private String ext;
 
-    @Ignore
     @SerializedName("jar")
     private String jar;
 
-    @Ignore
     @SerializedName("click")
     private String click;
 
-    @Ignore
     @SerializedName("playUrl")
     private String playUrl;
 
-    @Ignore
     @SerializedName("type")
     private Integer type;
 
-    @Ignore
     @SerializedName("hide")
     private Integer hide;
 
-    @Ignore
     @SerializedName("indexs")
     private Integer indexs;
 
-    @Ignore
     @SerializedName("timeout")
     private Integer timeout;
 
@@ -86,23 +69,19 @@ public class Site implements Parcelable {
     @SerializedName("changeable")
     private Integer changeable;
 
-    @Ignore
     @SerializedName("quickSearch")
     private Integer quickSearch;
 
-    @Ignore
     @SerializedName("categories")
     private List<String> categories;
 
-    @Ignore
     @SerializedName("header")
     @JsonAdapter(HeaderAdapter.class)
     private Map<String, String> header;
 
-    @Ignore
     @SerializedName("style")
+    private Style style;
 
-    @Ignore
     private boolean selected;
 
     public Site() {
@@ -122,6 +101,7 @@ public class Site implements Parcelable {
         this.searchable = (Integer) in.readValue(Integer.class.getClassLoader());
         this.changeable = (Integer) in.readValue(Integer.class.getClassLoader());
         this.categories = in.createStringArrayList();
+        this.style = in.readParcelable(Style.class.getClassLoader());
         this.selected = in.readByte() != 0;
     }
 
@@ -144,8 +124,9 @@ public class Site implements Parcelable {
         return site;
     }
 
+    /** 插件版无数据库：站点来自订阅 JSON，前端自存。这里返回空列表，sync() 自然跳过。 */
     public static List<Site> findAll() {
-        return AppDatabase.get().getSiteDao().findAll();
+        return Collections.emptyList();
     }
 
     public String getKey() {
@@ -236,7 +217,13 @@ public class Site implements Parcelable {
         return header == null ? new HashMap<>() : header;
     }
 
+    public Style getStyle() {
+        return style;
+    }
 
+    public Style getStyle(Style style) {
+        return getStyle() != null ? getStyle() : style != null ? style : Style.rect();
+    }
 
     public boolean isSelected() {
         return selected;
@@ -322,8 +309,8 @@ public class Site implements Parcelable {
         return BaseLoader.get().getSpider(getKey(), getApi(), getExt(), getJar());
     }
 
+    /** 插件版无数据库：前端自存，save 为空操作。 */
     public void save() {
-        AppDatabase.get().getSiteDao().insertOrUpdate(this);
     }
 
     @Override

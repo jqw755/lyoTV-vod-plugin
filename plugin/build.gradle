@@ -20,8 +20,17 @@ android {
         }
     }
 
+    // simple-xml 会带进 stax / xpp3，在 Android 上冲突，必须排除；okhttp 锁版本与原项目一致
+    configurations.configureEach {
+        exclude group: 'stax', module: 'stax-api'
+        exclude group: 'xpp3', module: 'xpp3'
+        exclude group: 'com.android.support'
+        resolutionStrategy {
+            force libs.okhttp
+        }
+    }
+
     compileOptions {
-        coreLibraryDesugaringEnabled = true
         sourceCompatibility JavaVersion.VERSION_21
         targetCompatibility JavaVersion.VERSION_21
     }
@@ -30,10 +39,17 @@ android {
 dependencies {
     implementation project(':catvod')
     implementation project(':quickjs')
-    // uni-app 原生插件 SDK（Phase 2 引入）：把 HBuilderX 下载的 aar 放入 plugin/libs/
-    // implementation fileTree(dir: "libs", include: ["*.aar"])
+    // 源解析链路必需：simple-xml（Result/Vod/Class 的 @Root/@Element XML 解析）、nanohttpd（本地代理服务器）
+    implementation libs.simple.xml
+    implementation libs.nanohttpd
+    // gson / okhttp / guava 由 catvod 的 api 传递暴露，显式声明以防被裁剪
     implementation libs.gson
-    implementation libs.room.runtime
-    annotationProcessor libs.room.compiler
-    coreLibraryDesugaring libs.desugar
+    implementation(libs.bundles.okhttp) {
+        exclude group: 'com.squareup.okhttp3', module: 'okhttp-android'
+    }
+    implementation libs.guava
+    // uni-app 原生插件 SDK：宿主已包含，仅编译期引用，不打包进 aar
+    compileOnly fileTree(dir: "libs", include: ["*.aar", "*.jar"])
+    // uni @UniJSMethod 的 JSONObject 参数是 fastjson 类型，aar 不自带需显式引入
+    implementation 'com.alibaba:fastjson:1.2.83'
 }

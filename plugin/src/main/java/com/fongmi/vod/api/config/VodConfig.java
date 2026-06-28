@@ -10,8 +10,6 @@ import com.fongmi.vod.bean.Depot;
 import com.fongmi.vod.bean.Parse;
 import com.fongmi.vod.bean.Rule;
 import com.fongmi.vod.bean.Site;
-import com.fongmi.vod.event.ConfigEvent;
-import com.fongmi.vod.event.RefreshEvent;
 import com.fongmi.vod.impl.Callback;
 import com.fongmi.vod.utils.UrlUtil;
 import com.github.catvod.bean.Doh;
@@ -39,6 +37,7 @@ public class VodConfig extends BaseConfig {
     private List<String> ads;
     private List<String> flags;
     private List<Parse> parses;
+    private String wall;
 
     public static VodConfig get() {
         return Loader.INSTANCE;
@@ -105,7 +104,6 @@ public class VodConfig extends BaseConfig {
     @Override
     protected void postEvent() {
         super.postEvent();
-        ConfigEvent.vod();
     }
 
     @Override
@@ -250,7 +248,6 @@ public class VodConfig extends BaseConfig {
 
     public void setHome(Site site) {
         setHome(getConfig(), site, true);
-        RefreshEvent.home();
     }
 
     public String getWall() {

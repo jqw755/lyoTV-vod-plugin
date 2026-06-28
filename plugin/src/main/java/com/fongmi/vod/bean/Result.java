@@ -13,7 +13,6 @@ import com.fongmi.vod.gson.FilterAdapter;
 import com.fongmi.vod.gson.HeaderAdapter;
 import com.fongmi.vod.gson.MsgAdapter;
 import com.fongmi.vod.gson.UrlAdapter;
-import com.fongmi.vod.setting.DanmakuSetting;
 import com.fongmi.vod.utils.Util;
 import com.github.catvod.utils.Trans;
 import com.google.gson.annotations.JsonAdapter;
@@ -252,7 +251,6 @@ public class Result implements Parcelable {
     }
 
     public List<Danmaku> getDanmaku() {
-        if (!DanmakuSetting.isLoad()) return new ArrayList<>();
         return danmaku = danmaku == null ? new ArrayList<>() : danmaku;
     }
 

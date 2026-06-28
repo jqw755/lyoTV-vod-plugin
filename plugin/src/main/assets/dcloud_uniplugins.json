@@ -1,0 +1,8 @@
+{
+  "nativePlugins": [
+    {
+      "pluginsName": "Fongmi-VodPlugin",
+      "class": "com.fongmi.vod.VodModule"
+    }
+  ]
+}

@@ -6,6 +6,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.fongmi.vod.App;
+import com.fongmi.vod.gson.HeaderAdapter;
+import com.fongmi.vod.impl.Diffable;
 import com.fongmi.vod.utils.ResUtil;
 import com.fongmi.vod.utils.UrlUtil;
 import com.github.catvod.utils.Util;
@@ -19,7 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public class Parse {
+public class Parse implements Diffable<Parse> {
 
     @SerializedName("name")
     private String name;

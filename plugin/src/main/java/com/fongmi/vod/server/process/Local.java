@@ -56,7 +56,7 @@ public class Local implements Process {
         for (String k : files.keySet()) {
             String fn = params.get(k);
             File temp = new File(files.get(k));
-            else Path.copy(temp, Path.root(path, fn));
+            Path.copy(temp, Path.root(path, fn));
         }
         return Nano.ok();
     }

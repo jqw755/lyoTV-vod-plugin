@@ -1,11 +1,8 @@
 package com.fongmi.vod.server;
 
-import com.fongmi.vod.api.config.LiveConfig;
 import com.fongmi.vod.server.impl.Process;
-import com.fongmi.vod.server.process.Action;
 import com.fongmi.vod.server.process.Cache;
 import com.fongmi.vod.server.process.Local;
-import com.fongmi.vod.server.process.Media;
 import com.fongmi.vod.server.process.Parse;
 import com.fongmi.vod.server.process.Proxy;
 import com.github.catvod.utils.Asset;
@@ -31,10 +28,8 @@ public class Nano extends NanoHTTPD {
 
     private void addProcess() {
         process = new ArrayList<>();
-        process.add(new Action());
         process.add(new Cache());
         process.add(new Local());
-        process.add(new Media());
         process.add(new Parse());
         process.add(new Proxy());
     }
@@ -60,8 +55,6 @@ public class Nano extends NanoHTTPD {
         String url = session.getUri().trim();
         Map<String, String> files = new HashMap<>();
         if (session.getMethod() == Method.POST) parse(session, files);
-        if (url.startsWith("/tvbus")) return ok(LiveConfig.getResp());
-        
         for (Process process : process) if (process.isRequest(session, url)) return process.doResponse(session, url, files);
         return getAssets(url.substring(1));
     }

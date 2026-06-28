@@ -7,7 +7,5 @@ import fi.iki.elonen.NanoHTTPD.Response;
 
 public interface Process {
     boolean isRequest(IHTTPSession session, String url);
-    default Response doResponse(IHTTPSession session, String url, Map<String, String> files) {
-        return NanoHTTPD.ok("OK");
-    }
+    Response doResponse(IHTTPSession session, String url, Map<String, String> files);
 }

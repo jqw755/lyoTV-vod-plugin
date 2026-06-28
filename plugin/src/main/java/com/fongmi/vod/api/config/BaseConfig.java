@@ -3,9 +3,7 @@ package com.fongmi.vod.api.config;
 import android.text.TextUtils;
 
 import com.fongmi.vod.App;
-import com.fongmi.vod.R;
 import com.fongmi.vod.bean.Config;
-import com.fongmi.vod.event.ConfigEvent;
 import com.fongmi.vod.impl.Callback;
 import com.fongmi.vod.server.Server;
 import com.fongmi.vod.utils.Notify;
@@ -54,7 +52,7 @@ abstract class BaseConfig {
     }
 
     protected void postEvent() {
-        ConfigEvent.common();
+        // 插件版无 EventBus：原 fongmi 在此发 ConfigEvent 通知 UI 刷新，插件用 Callback 回传 JS，留空。
     }
 
     public boolean needSync(String url) {
@@ -91,14 +89,13 @@ abstract class BaseConfig {
             load(config);
             if (taskId.get() != id) return;
             if (config.equals(this.config)) config.update();
-            App.post(() -> Notify.show(config.getNotice()));
             App.post(callback::success);
         } catch (Throwable e) {
-            e.printStackTrace();
+            android.util.Log.e("VodPlugin", "loadConfig failed", e);
             if (isCanceled(e)) return;
             if (taskId.get() != id) return;
-            if (TextUtils.isEmpty(config.getUrl())) App.post(() -> callback.error(""));
-            else App.post(() -> callback.error(Notify.getError(R.string.error_config_get, e)));
+            String msg = e.getClass().getSimpleName() + ": " + (e.getMessage() != null ? e.getMessage() : "no message");
+            App.post(() -> callback.error(msg));
         } finally {
             if (taskId.get() == id) postEvent();
         }

@@ -21,7 +21,7 @@ import java.util.regex.Pattern;
 
 public class Util {
 
-    private static final Pattern EPISODE = Pattern.compile("(?i)(?:ep|第|e|[\-\.\s])\s?(\d{1,4})");
+    private static final Pattern EPISODE = Pattern.compile("(?i)(?:ep|第|e|[\\-\\.\\s])\\s?(\\d{1,4})");
 
     public static void showKeyboard(android.view.View view) {
         if (!view.requestFocus()) return;
@@ -54,12 +54,12 @@ public class Util {
 
     public static int getNumber(String text) {
         try {
-            text = text.replaceAll("\[.*?\]|\(.*?\)", "");
-            text = text.replaceAll("\b(19|20)\d{2}\b", "");
+            text = text.replaceAll("\\[.*?\\]|\\(.*?\\)", "");
+            text = text.replaceAll("\\b(19|20)\\d{2}\\b", "");
             text = text.toLowerCase().replaceAll("2160p|1080p|720p|480p|4k|h26[45]|x26[45]|mp4", "");
             Matcher matcher = EPISODE.matcher(text);
             if (matcher.find()) return Integer.parseInt(matcher.group(1));
-            String number = text.replaceAll("\D+", "");
+            String number = text.replaceAll("\\D+", "");
             return number.isEmpty() ? -1 : Integer.parseInt(number);
         } catch (Exception e) {
             return -1;
