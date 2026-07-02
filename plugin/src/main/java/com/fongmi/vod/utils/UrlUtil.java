@@ -2,12 +2,15 @@ package com.fongmi.vod.utils;
 
 import android.net.Uri;
 
-import com.fongmi.vod.server.Server;
 import com.github.catvod.utils.UriUtil;
 import com.google.common.net.HttpHeaders;
 
 import java.io.File;
 
+/**
+ * URL 工具：从 lyoTV 抽取。原 convert 依赖本地 Server 做 assets/proxy/file 协议转换，
+ * 插件无 Server，降级为原样返回（订阅源 api/ext 一般为 http(s)）。
+ */
 public class UrlUtil {
 
     public static Uri uri(String url) {
@@ -47,14 +50,8 @@ public class UrlUtil {
     }
 
     public static String convert(String url) {
-        String scheme = scheme(url);
-        String prefix = scheme + "://";
-        return switch (scheme) {
-            case "assets" -> url.replace(prefix, Server.get().getAddress("/"));
-            case "proxy" -> url.replace(prefix, Server.get().getAddress("/proxy?"));
-            case "file" -> Server.get().getAddress("/file/") + Uri.encode(url.substring((prefix).length()), "/");
-            default -> url;
-        };
+        // 无本地代理服务器，assets/proxy/file 等协议原样返回
+        return url;
     }
 
     public static String getName(String url) {

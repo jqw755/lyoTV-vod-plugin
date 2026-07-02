@@ -8,7 +8,6 @@ import androidx.annotation.NonNull;
 
 import com.fongmi.vod.App;
 import com.fongmi.vod.api.config.VodConfig;
-import com.fongmi.vod.gson.DanmakuAdapter;
 import com.fongmi.vod.gson.FilterAdapter;
 import com.fongmi.vod.gson.HeaderAdapter;
 import com.fongmi.vod.gson.MsgAdapter;
@@ -32,6 +31,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 从 lyoTV 抽取，剥离 danmaku/subs/drm 字段及 DanmakuAdapter/DanmakuSetting 依赖。
+ */
 @Root(name = "rss", strict = false)
 public class Result implements Parcelable {
 
@@ -61,12 +63,6 @@ public class Result implements Parcelable {
     @JsonAdapter(MsgAdapter.class)
     private String msg;
 
-    @SerializedName("danmaku")
-    @JsonAdapter(DanmakuAdapter.class)
-    private List<Danmaku> danmaku;
-
-    @SerializedName("subs")
-    private List<Sub> subs;
     @SerializedName("playUrl")
     private String playUrl;
     @SerializedName("artwork")
@@ -93,8 +89,6 @@ public class Result implements Parcelable {
     private Integer code;
     @SerializedName("jx")
     private Integer jx;
-    @SerializedName("drm")
-    private Drm drm;
 
     public Result() {
     }
@@ -206,14 +200,6 @@ public class Result implements Parcelable {
         this.msg = msg;
     }
 
-    public List<Sub> getSubs() {
-        return subs == null ? new ArrayList<>() : new ArrayList<>(subs);
-    }
-
-    public void setSubs(List<Sub> subs) {
-        if (getSubs().isEmpty()) this.subs = subs;
-    }
-
     public Map<String, String> getHeader() {
         return header == null ? new HashMap<>() : header;
     }
@@ -248,10 +234,6 @@ public class Result implements Parcelable {
 
     public String getDesc() {
         return TextUtils.isEmpty(desc) ? "" : Util.clean(desc);
-    }
-
-    public List<Danmaku> getDanmaku() {
-        return danmaku = danmaku == null ? new ArrayList<>() : danmaku;
     }
 
     public String getFormat() {
@@ -306,14 +288,6 @@ public class Result implements Parcelable {
         return jx == null ? 0 : jx;
     }
 
-    public Drm getDrm() {
-        return drm;
-    }
-
-    public void setDrm(Drm drm) {
-        this.drm = drm;
-    }
-
     public boolean hasMsg() {
         return !getMsg().isEmpty();
     }
@@ -344,7 +318,7 @@ public class Result implements Parcelable {
     }
 
     public Style getStyle(Style style) {
-        return null;
+        return getList().isEmpty() ? Style.rect() : getList().get(0).getStyle(style);
     }
 
     public Vod getVod() {
@@ -360,13 +334,22 @@ public class Result implements Parcelable {
         if (Trans.pass()) return this;
         getTypes().forEach(Class::trans);
         getList().forEach(Vod::trans);
-        getSubs().forEach(Sub::trans);
         return this;
     }
 
     @NonNull
     @Override
     public String toString() {
+        // 将每个 vod 的图片 URL 写回干净的值（爬虫附加的 @Referer=... 后缀已由 Vod.getPic() 清理，
+        // 但 Gson 序列化使用字段值而非 getter，需先通过 setter 同步清理后的值到字段）
+        int proxyPort = com.fongmi.vod.utils.ImageProxy.get().start();
+        for (Vod v : getList()) {
+            if (proxyPort > 0) {
+                v.setPic(v.getPicProxyUrl(proxyPort));
+            } else {
+                v.setPic(v.getPic());
+            }
+        }
         return App.gson().toJson(this);
     }
 

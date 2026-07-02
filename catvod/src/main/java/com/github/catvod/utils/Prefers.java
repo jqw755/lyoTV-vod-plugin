@@ -1,15 +1,15 @@
 package com.github.catvod.utils;
 
+import android.content.Context;
 import android.content.SharedPreferences;
-
-import androidx.preference.PreferenceManager;
 
 import com.github.catvod.Init;
 
 public class Prefers {
 
     public static SharedPreferences getPrefers() {
-        return PreferenceManager.getDefaultSharedPreferences(Init.context());
+        Context ctx = Init.context();
+        return ctx.getSharedPreferences(ctx.getPackageName() + "_preferences", Context.MODE_PRIVATE);
     }
 
     public static String getString(String key) {

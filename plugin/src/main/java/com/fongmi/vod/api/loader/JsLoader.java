@@ -1,8 +1,8 @@
 package com.fongmi.vod.api.loader;
 
-import com.fongmi.vod.App;
 import com.fongmi.quickjs.crawler.Loader;
 import com.fongmi.quickjs.utils.Module;
+import com.fongmi.vod.App;
 import com.github.catvod.crawler.Spider;
 import com.github.catvod.crawler.SpiderNull;
 

@@ -17,6 +17,10 @@ import java.util.Map;
 
 import dalvik.system.DexClassLoader;
 
+/**
+ * 从 lyoTV 抽取，剥离 PyLoader（chaquo python）与 LiveConfig/Live（直播）。
+ * 只保留 Jar（csp_）与 Js（.js）两种爬虫加载。
+ */
 public class BaseLoader {
 
     private final JarLoader jarLoader;

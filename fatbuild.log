@@ -1,0 +1,218 @@
+Starting a Gradle Daemon (subsequent builds will be faster)
+> Task :plugin:preBuild UP-TO-DATE
+> Task :catvod:preBuild UP-TO-DATE
+> Task :quickjs:preBuild UP-TO-DATE
+> Task :quickjs:preReleaseBuild UP-TO-DATE
+> Task :catvod:preReleaseBuild UP-TO-DATE
+> Task :plugin:preReleaseBuild UP-TO-DATE
+> Task :plugin:mergeReleaseJniLibFolders UP-TO-DATE
+> Task :quickjs:writeReleaseAarMetadata UP-TO-DATE
+> Task :quickjs:generateReleaseResources UP-TO-DATE
+> Task :plugin:mergeReleaseNativeLibs NO-SOURCE
+> Task :plugin:stripReleaseDebugSymbols NO-SOURCE
+> Task :plugin:copyReleaseJniLibsProjectAndLocalJars UP-TO-DATE
+> Task :plugin:extractDeepLinksForAarRelease UP-TO-DATE
+> Task :quickjs:packageReleaseResources UP-TO-DATE
+> Task :plugin:generateReleaseResources UP-TO-DATE
+> Task :quickjs:processReleaseNavigationResources UP-TO-DATE
+> Task :plugin:packageReleaseResources UP-TO-DATE
+> Task :plugin:processReleaseNavigationResources UP-TO-DATE
+> Task :quickjs:parseReleaseLocalResources UP-TO-DATE
+> Task :plugin:parseReleaseLocalResources UP-TO-DATE
+> Task :quickjs:generateReleaseRFile UP-TO-DATE
+> Task :plugin:generateReleaseRFile UP-TO-DATE
+> Task :plugin:generateReleaseAssets UP-TO-DATE
+> Task :quickjs:javaPreCompileRelease UP-TO-DATE
+> Task :quickjs:mapReleaseSourceSetPaths UP-TO-DATE
+> Task :quickjs:compileReleaseLibraryResources UP-TO-DATE
+> Task :quickjs:mergeReleaseJniLibFolders UP-TO-DATE
+> Task :quickjs:mergeReleaseNativeLibs NO-SOURCE
+> Task :quickjs:stripReleaseDebugSymbols NO-SOURCE
+> Task :quickjs:copyReleaseJniLibsProjectAndLocalJars UP-TO-DATE
+> Task :quickjs:extractDeepLinksForAarRelease UP-TO-DATE
+> Task :quickjs:generateReleaseAssets UP-TO-DATE
+> Task :quickjs:mergeReleaseAssets UP-TO-DATE
+> Task :quickjs:prepareLintJarForPublish UP-TO-DATE
+> Task :quickjs:prepareReleaseArtProfile UP-TO-DATE
+> Task :quickjs:processReleaseManifest UP-TO-DATE
+> Task :plugin:mergeReleaseAssets
+> Task :plugin:javaPreCompileRelease UP-TO-DATE
+> Task :plugin:prepareLintJarForPublish UP-TO-DATE
+> Task :plugin:prepareReleaseArtProfile UP-TO-DATE
+> Task :plugin:processReleaseManifest UP-TO-DATE
+> Task :plugin:writeReleaseAarMetadata UP-TO-DATE
+> Task :plugin:mapReleaseSourceSetPaths UP-TO-DATE
+> Task :catvod:checkReleaseAarMetadata UP-TO-DATE
+> Task :catvod:mergeReleaseJniLibFolders UP-TO-DATE
+> Task :catvod:mergeReleaseNativeLibs NO-SOURCE
+> Task :catvod:stripReleaseDebugSymbols NO-SOURCE
+> Task :catvod:copyReleaseJniLibsProjectAndLocalJars UP-TO-DATE
+> Task :catvod:extractDeepLinksForAarRelease UP-TO-DATE
+> Task :catvod:generateReleaseResources UP-TO-DATE
+> Task :catvod:packageReleaseResources UP-TO-DATE
+> Task :catvod:processReleaseNavigationResources UP-TO-DATE
+> Task :catvod:parseReleaseLocalResources UP-TO-DATE
+> Task :catvod:generateReleaseRFile UP-TO-DATE
+> Task :quickjs:mergeReleaseResources UP-TO-DATE
+> Task :plugin:mergeReleaseResources UP-TO-DATE
+> Task :catvod:extractReleaseAnnotations UP-TO-DATE
+> Task :catvod:generateReleaseAssets UP-TO-DATE
+> Task :catvod:mergeReleaseAssets UP-TO-DATE
+> Task :catvod:compileReleaseKotlin NO-SOURCE
+> Task :catvod:javaPreCompileRelease UP-TO-DATE
+> Task :catvod:compileReleaseJavaWithJavac UP-TO-DATE
+> Task :catvod:mergeReleaseGeneratedProguardFiles UP-TO-DATE
+> Task :catvod:mergeReleaseConsumerProguardFiles UP-TO-DATE
+> Task :catvod:prepareLintJarForPublish UP-TO-DATE
+> Task :catvod:prepareReleaseArtProfile UP-TO-DATE
+> Task :catvod:processReleaseManifest UP-TO-DATE
+> Task :catvod:processReleaseJavaRes NO-SOURCE
+> Task :catvod:mergeReleaseJavaResource UP-TO-DATE
+> Task :catvod:syncReleaseLibJars UP-TO-DATE
+> Task :catvod:writeReleaseAarMetadata UP-TO-DATE
+> Task :catvod:bundleReleaseAar UP-TO-DATE
+> Task :catvod:mapReleaseSourceSetPaths UP-TO-DATE
+> Task :plugin:checkReleaseAarMetadata UP-TO-DATE
+> Task :quickjs:checkReleaseAarMetadata UP-TO-DATE
+> Task :catvod:mergeReleaseResources UP-TO-DATE
+> Task :catvod:verifyReleaseResources UP-TO-DATE
+> Task :catvod:assembleRelease UP-TO-DATE
+> Task :catvod:bundleLibCompileToJarRelease UP-TO-DATE
+> Task :catvod:compileReleaseLibraryResources UP-TO-DATE
+> Task :quickjs:compileReleaseKotlin NO-SOURCE
+> Task :plugin:verifyReleaseResources UP-TO-DATE
+> Task :quickjs:compileReleaseJavaWithJavac UP-TO-DATE
+> Task :quickjs:bundleLibCompileToJarRelease UP-TO-DATE
+> Task :quickjs:extractReleaseAnnotations UP-TO-DATE
+> Task :quickjs:mergeReleaseGeneratedProguardFiles UP-TO-DATE
+> Task :quickjs:mergeReleaseConsumerProguardFiles UP-TO-DATE
+> Task :quickjs:processReleaseJavaRes NO-SOURCE
+> Task :quickjs:mergeReleaseJavaResource UP-TO-DATE
+> Task :quickjs:syncReleaseLibJars UP-TO-DATE
+> Task :quickjs:bundleReleaseAar UP-TO-DATE
+> Task :quickjs:verifyReleaseResources UP-TO-DATE
+> Task :quickjs:assembleRelease UP-TO-DATE
+> Task :plugin:extractReleaseAnnotations
+> Task :plugin:compileReleaseKotlin NO-SOURCE
+
+> Task :plugin:compileReleaseJavaWithJavac
+注: 某些输入文件使用或覆盖了已过时的 API。
+注: 有关详细信息, 请使用 -Xlint:deprecation 重新编译。
+
+> Task :plugin:mergeReleaseGeneratedProguardFiles UP-TO-DATE
+> Task :plugin:mergeReleaseConsumerProguardFiles UP-TO-DATE
+> Task :plugin:processReleaseJavaRes NO-SOURCE
+> Task :plugin:mergeReleaseJavaResource UP-TO-DATE
+> Task :plugin:syncReleaseLibJars
+> Task :plugin:bundleReleaseAar
+> Task :plugin:assembleRelease
+
+> Task :plugin:fatAar
+  [cand] androidx.preference:preference  <- preference-1.2.1.aar
+  [cand] androidx.appcompat:appcompat  <- appcompat-1.1.0.aar
+  [cand] androidx.recyclerview:recyclerview  <- recyclerview-1.0.0.aar
+  [cand] androidx.legacy:legacy-support-core-ui  <- legacy-support-core-ui-1.0.0.aar
+  [cand] androidx.slidingpanelayout:slidingpanelayout  <- slidingpanelayout-1.2.0.aar
+  [cand] androidx.slidingpanelayout:slidingpanelayout  <- slidingpanelayout-1.2.0.aar
+  [cand] androidx.cursoradapter:cursoradapter  <- cursoradapter-1.0.0.aar
+  [cand] androidx.appcompat:appcompat-resources  <- appcompat-resources-1.1.0.aar
+  [cand] androidx.drawerlayout:drawerlayout  <- drawerlayout-1.0.0.aar
+  [cand] androidx.fragment:fragment-ktx  <- fragment-ktx-1.3.6.aar
+  [cand] androidx.activity:activity-ktx  <- activity-ktx-1.5.1.aar
+  [cand] androidx.fragment:fragment  <- fragment-1.3.6.aar
+  [cand] androidx.fragment:fragment  <- fragment-1.3.6.aar
+  [cand] androidx.activity:activity  <- activity-1.5.1.aar
+  [cand] androidx.lifecycle:lifecycle-runtime-ktx  <- lifecycle-runtime-ktx-2.5.1.aar
+  [cand] androidx.viewpager:viewpager  <- viewpager-1.0.0.aar
+  [cand] androidx.coordinatorlayout:coordinatorlayout  <- coordinatorlayout-1.0.0.aar
+  [cand] androidx.customview:customview  <- customview-1.1.0.aar
+  [cand] androidx.vectordrawable:vectordrawable-animated  <- vectordrawable-animated-1.1.0.aar
+  [cand] androidx.vectordrawable:vectordrawable  <- vectordrawable-1.1.0.aar
+  [cand] androidx.legacy:legacy-support-core-utils  <- legacy-support-core-utils-1.0.0.aar
+  [cand] androidx.loader:loader  <- loader-1.0.0.aar
+  [cand] androidx.swiperefreshlayout:swiperefreshlayout  <- swiperefreshlayout-1.0.0.aar
+  [cand] androidx.asynclayoutinflater:asynclayoutinflater  <- asynclayoutinflater-1.0.0.aar
+  [cand] androidx.lifecycle:lifecycle-viewmodel-savedstate  <- lifecycle-viewmodel-savedstate-2.5.1.aar
+  [cand] androidx.core:core-ktx  <- core-ktx-1.2.0.aar
+  [cand] androidx.core:core  <- core-1.8.0.aar
+  [cand] androidx.core:core  <- core-1.8.0.aar
+  [cand] androidx.lifecycle:lifecycle-runtime  <- lifecycle-runtime-2.5.1.aar
+  [cand] androidx.lifecycle:lifecycle-viewmodel-ktx  <- lifecycle-viewmodel-ktx-2.5.1.aar
+  [cand] androidx.lifecycle:lifecycle-viewmodel  <- lifecycle-viewmodel-2.5.1.aar
+  [cand] androidx.lifecycle:lifecycle-viewmodel  <- lifecycle-viewmodel-2.5.1.aar
+  [cand] androidx.savedstate:savedstate-ktx  <- savedstate-ktx-1.2.0.aar
+  [cand] androidx.savedstate:savedstate  <- savedstate-1.2.0.aar
+  [cand] androidx.collection:collection-ktx  <- collection-ktx-1.1.0.jar
+  [cand] androidx.versionedparcelable:versionedparcelable  <- versionedparcelable-1.1.1.aar
+  [cand] androidx.collection:collection  <- collection-1.1.0.jar
+  [cand] androidx.interpolator:interpolator  <- interpolator-1.0.0.aar
+  [cand] androidx.lifecycle:lifecycle-livedata  <- lifecycle-livedata-2.0.0.aar
+  [cand] androidx.arch.core:core-runtime  <- core-runtime-2.0.0.aar
+  [cand] androidx.arch.core:core-common  <- core-common-2.1.0.jar
+  [cand] androidx.lifecycle:lifecycle-livedata-core-ktx  <- lifecycle-livedata-core-ktx-2.3.1.aar
+  [cand] androidx.lifecycle:lifecycle-livedata-core  <- lifecycle-livedata-core-2.5.1.aar
+  [cand] androidx.lifecycle:lifecycle-livedata-core  <- lifecycle-livedata-core-2.5.1.aar
+  [cand] androidx.lifecycle:lifecycle-common  <- lifecycle-common-2.5.1.jar
+  [cand] androidx.documentfile:documentfile  <- documentfile-1.0.0.aar
+  [cand] androidx.localbroadcastmanager:localbroadcastmanager  <- localbroadcastmanager-1.0.0.aar
+  [cand] androidx.print:print  <- print-1.0.0.aar
+  [cand] androidx.annotation:annotation-jvm  <- annotation-jvm-1.10.0.jar
+  [cand] org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm  <- kotlinx-coroutines-core-jvm-1.6.1.jar
+  [cand] org.jetbrains.kotlinx:kotlinx-coroutines-android  <- kotlinx-coroutines-android-1.6.1.jar
+  [cand] org.jetbrains.kotlin:kotlin-stdlib-jdk8  <- kotlin-stdlib-jdk8-1.8.0.jar
+  [cand] org.jetbrains.kotlin:kotlin-stdlib-jdk7  <- kotlin-stdlib-jdk7-1.8.0.jar
+  [cand] org.jetbrains.kotlin:kotlin-stdlib  <- kotlin-stdlib-2.2.10.jar
+  [cand] com.alibaba:fastjson  <- fastjson-1.2.83.jar
+  [cand] org.simpleframework:simple-xml  <- simple-xml-2.7.1.jar
+  [cand] com.google.code.gson:gson  <- gson-2.14.0.jar
+  [cand] com.squareup.okhttp3:okhttp-dnsoverhttps  <- okhttp-dnsoverhttps-3.12.13.jar
+  [cand] com.squareup.okhttp3:logging-interceptor  <- logging-interceptor-3.12.13.jar
+  [cand] com.github.thegrizzlylabs:sardine-android  <- sardine-android-0.9.aar
+  [cand] com.squareup.okhttp3:okhttp  <- okhttp-3.12.13.jar
+  [cand] com.google.guava:guava  <- guava-33.6.0-android.jar
+  [cand] org.brotli:dec  <- dec-0.1.2.jar
+  [cand] com.googlecode.juniversalchardet:juniversalchardet  <- juniversalchardet-1.0.3.jar
+  [cand] com.orhanobut:logger  <- logger-2.2.0.aar
+  [cand] com.hierynomus:smbj  <- smbj-0.14.0.jar
+  [cand] androidx.startup:startup-runtime  <- startup-runtime-1.2.0.aar
+  [cand] com.google.zxing:core  <- core-3.5.4.jar
+  [cand] wang.harlon.quickjs:wrapper-android  <- wrapper-android-3.2.3.aar
+  [cand] org.jetbrains:annotations  <- annotations-13.0.jar
+  [cand] stax:stax  <- stax-1.2.0.jar
+  [cand] com.google.errorprone:error_prone_annotations  <- error_prone_annotations-2.48.0.jar
+  [cand] com.squareup.okio:okio  <- okio-1.15.0.jar
+  [cand] com.google.guava:failureaccess  <- failureaccess-1.0.3.jar
+  [cand] com.google.guava:listenablefuture  <- listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
+  [cand] org.jspecify:jspecify  <- jspecify-1.0.0.jar
+  [cand] com.google.j2objc:j2objc-annotations  <- j2objc-annotations-3.1.jar
+  [cand] wang.harlon.quickjs:wrapper-java  <- wrapper-java-3.2.3.jar
+  [cand] androidx.annotation:annotation-experimental  <- annotation-experimental-1.1.0.aar
+fat-aar: 发现 16 个外部依赖（白名单+宿主排除后）
+  - simple-xml-2.7.1.jar
+  - gson-2.14.0.jar
+  - okhttp-dnsoverhttps-3.12.13.jar
+  - logging-interceptor-3.12.13.jar
+  - sardine-android-0.9.aar
+  - guava-33.6.0-android.jar
+  - dec-0.1.2.jar
+  - logger-2.2.0.aar
+  - smbj-0.14.0.jar
+  - core-3.5.4.jar
+  - wrapper-android-3.2.3.aar
+  - error_prone_annotations-2.48.0.jar
+  - failureaccess-1.0.3.jar
+  - jspecify-1.0.0.jar
+  - j2objc-annotations-3.1.jar
+  - wrapper-java-3.2.3.jar
+✅ Fat AAR 生成完毕: E:\jqw\programs\lyoTV-vod-plugin\plugin\build\outputs\aar\plugin-release.aar (7314 KB)
+
+[Incubating] Problems report is available at: file:///E:/jqw/programs/lyoTV-vod-plugin/build/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/9.5.1/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 31s
+80 actionable tasks: 6 executed, 74 up-to-date

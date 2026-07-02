@@ -26,6 +26,9 @@ public class Rule {
     @SerializedName("exclude")
     private List<String> exclude;
 
+    public Rule() {
+    }
+
     public Rule(String name) {
         this.name = name;
     }

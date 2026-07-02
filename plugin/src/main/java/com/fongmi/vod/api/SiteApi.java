@@ -11,8 +11,6 @@ import com.fongmi.vod.bean.Class;
 import com.fongmi.vod.bean.Result;
 import com.fongmi.vod.bean.Site;
 import com.fongmi.vod.bean.Vod;
-import com.fongmi.vod.player.extractor.Source;
-import com.fongmi.vod.utils.Sniffer;
 import com.github.catvod.crawler.Spider;
 import com.github.catvod.crawler.SpiderDebug;
 import com.github.catvod.net.OkHttp;
@@ -30,6 +28,11 @@ import java.util.Objects;
 import okhttp3.Call;
 import okhttp3.Response;
 
+/**
+ * 从 lyoTV 抽取，剥离 Source（播放嗅探器）/Sniffer（WebView 嗅探）/ResUtil/R。
+ * playerContent 直接返回爬虫给出的播放地址，不做二次嗅探；
+ * detailContent 仅做 setFlags()，不做 Source.parse。
+ */
 public class SiteApi {
 
     public static final String PUSH = "push_agent";
@@ -61,8 +64,20 @@ public class SiteApi {
             SpiderDebug.log("home", home);
             SpiderDebug.log("homeVideo", video);
             Result result = Result.fromJson(home);
-            List<Vod> list = Result.fromJson(video).getList();
-            if (!list.isEmpty()) result.setList(list);
+            List<Vod> homeList = result.getList();
+            List<Vod> videoList = Result.fromJson(video).getList();
+            // 诊断日志
+            android.util.Log.d("VodPlugin", "homeContent: homeList=" + homeList.size() + " videoList=" + videoList.size());
+            if (!homeList.isEmpty()) {
+                android.util.Log.d("VodPlugin", "home first pic=[" + homeList.get(0).getPic() + "]");
+            }
+            if (!videoList.isEmpty()) {
+                android.util.Log.d("VodPlugin", "video first pic=[" + videoList.get(0).getPic() + "]");
+            }
+            // 保留 home 原始 list（含完整 vod_pic），video 仅当 home 为空时兜底
+            if (homeList.isEmpty() && !videoList.isEmpty()) {
+                result.setList(videoList);
+            }
             setTypes(site, result);
             return result;
         } else if (site.getType() == 4) {
@@ -117,13 +132,14 @@ public class SiteApi {
             vod.setPlayUrl(id);
             vod.setPlayFrom("Push");
             vod.setPic("");
-            Source.get().parse(vod.setFlags());
+            vod.setFlags();
             return Result.vod(vod);
         } else if (isSpider(site)) {
             String detailContent = site.recent().spider().detailContent(Arrays.asList(id));
             SpiderDebug.log("detail", detailContent);
             Result result = Result.fromJson(detailContent);
-            Source.get().parse(result.getVod().setFlags());
+            result.getVod().setSite(site);
+            result.getVod().setFlags();
             return result;
         } else {
             ArrayMap<String, String> params = new ArrayMap<>();
@@ -132,7 +148,8 @@ public class SiteApi {
             String detailContent = call(site, params);
             SpiderDebug.log("detail", detailContent);
             Result result = Result.fromType(site.getType(), detailContent);
-            Source.get().parse(result.getVod().setFlags());
+            result.getVod().setSite(site);
+            result.getVod().setFlags();
             return result;
         }
     }
@@ -141,13 +158,11 @@ public class SiteApi {
     public static Result playerContent(@NonNull String key, @NonNull String flag, @NonNull String id) throws Exception {
         SpiderDebug.log("player", "key=%s,flag=%s,id=%s", key, flag, id);
         Site site = VodConfig.get().getSite(key);
-        Source.get().stop();
         if (site.getType() == 3) {
             String playerContent = site.recent().spider().playerContent(flag, id, VodConfig.get().getFlags());
             SpiderDebug.log("player", playerContent);
             Result result = Result.fromJson(playerContent);
             if (result.getFlag().isEmpty()) result.setFlag(flag);
-            result.setUrl(Source.get().fetch(result));
             result.setHeader(site.getHeader());
             result.setKey(key);
             return result;
@@ -159,15 +174,13 @@ public class SiteApi {
             SpiderDebug.log("player", playerContent);
             Result result = Result.fromJson(playerContent);
             if (result.getFlag().isEmpty()) result.setFlag(flag);
-            result.setUrl(Source.get().fetch(result));
             result.setHeader(site.getHeader());
             return result;
-        } else if (site.isEmpty() && "push_agent".equals(key)) {
+        } else if (site.isEmpty() && PUSH.equals(key)) {
             Result result = new Result();
             result.setUrl(id);
             result.setParse(0);
             result.setFlag(flag);
-            result.setUrl(Source.get().fetch(result));
             SpiderDebug.log("player", result.toString());
             return result;
         } else {
@@ -176,8 +189,7 @@ public class SiteApi {
             result.setFlag(flag);
             result.setHeader(site.getHeader());
             result.setPlayUrl(site.getPlayUrl());
-            result.setParse(Sniffer.isVideoFormat(id) && result.getPlayUrl().isEmpty() ? 0 : 1);
-            result.setUrl(Source.get().fetch(result));
+            result.setParse(1);
             SpiderDebug.log("player", result.toString());
             return result;
         }

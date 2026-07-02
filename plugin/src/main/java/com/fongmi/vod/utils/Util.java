@@ -1,56 +1,17 @@
 package com.fongmi.vod.utils;
 
-import android.content.ClipData;
-import android.content.ClipboardManager;
-import android.content.Context;
-import android.os.Build;
-import android.os.IBinder;
-import android.provider.Settings;
 import android.text.Html;
-import android.text.TextUtils;
-import android.view.inputmethod.InputMethodManager;
 
-import com.fongmi.vod.App;
-import com.github.catvod.utils.Shell;
-
-import java.net.NetworkInterface;
-import java.util.Formatter;
-import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * 纯文本工具：从 lyoTV 抽取 bean 链路用到的 getNumber/clean/substring，
+ * 剥离原 UI/media3/BuildConfig/Notify 等附属方法。
+ */
 public class Util {
 
     private static final Pattern EPISODE = Pattern.compile("(?i)(?:ep|第|e|[\\-\\.\\s])\\s?(\\d{1,4})");
-
-    public static void showKeyboard(android.view.View view) {
-        if (!view.requestFocus()) return;
-        InputMethodManager imm = (InputMethodManager) App.get().getSystemService(Context.INPUT_METHOD_SERVICE);
-        if (imm != null) view.postDelayed(() -> imm.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT), 250);
-    }
-
-    public static void hideKeyboard(android.view.View view) {
-        InputMethodManager imm = (InputMethodManager) App.get().getSystemService(Context.INPUT_METHOD_SERVICE);
-        IBinder windowToken = view.getWindowToken();
-        if (imm == null || windowToken == null) return;
-        imm.hideSoftInputFromWindow(windowToken, 0);
-    }
-
-    public static CharSequence getClipText() {
-        ClipboardManager manager = (ClipboardManager) App.get().getSystemService(Context.CLIPBOARD_SERVICE);
-        ClipData clipData = manager == null ? null : manager.getPrimaryClip();
-        if (clipData == null || clipData.getItemCount() == 0) return "";
-        return clipData.getItemAt(0).getText();
-    }
-
-    public static void copy(String text) {
-        try {
-            ClipboardManager manager = (ClipboardManager) App.get().getSystemService(Context.CLIPBOARD_SERVICE);
-            manager.setPrimaryClip(ClipData.newPlainText("", text));
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
 
     public static int getNumber(String text) {
         try {
@@ -70,40 +31,8 @@ public class Util {
         if (!text.contains("<")) return text;
         StringBuilder sb = new StringBuilder();
         text = Html.fromHtml(text, Html.FROM_HTML_MODE_LEGACY).toString().replace(" ", " ").replace("　", " ");
-        for (String line : text.split("\r?\n")) sb.append(line.trim()).append("\n");
+        for (String line : text.split("\\r?\\n")) sb.append(line.trim()).append("\n");
         return substring(sb.toString()).trim();
-    }
-
-    public static String getAndroidId() {
-        try {
-            String id = Settings.Secure.getString(App.get().getContentResolver(), Settings.Secure.ANDROID_ID);
-            if (TextUtils.isEmpty(id)) throw new NullPointerException();
-            return id;
-        } catch (Exception e) {
-            return "0000000000000000";
-        }
-    }
-
-    public static String getSerial() {
-        return Shell.exec("getprop ro.serialno").replace("\n", "");
-    }
-
-    public static String getMac(String name) {
-        try {
-            StringBuilder sb = new StringBuilder();
-            NetworkInterface nif = NetworkInterface.getByName(name);
-            if (nif.getHardwareAddress() == null) return "";
-            for (byte b : nif.getHardwareAddress()) sb.append(String.format("%02X:", b));
-            return substring(sb.toString());
-        } catch (Exception e) {
-            return "";
-        }
-    }
-
-    public static String getDeviceName() {
-        String model = Build.MODEL;
-        String manufacturer = Build.MANUFACTURER;
-        return model.startsWith(manufacturer) ? model : manufacturer + " " + model;
     }
 
     public static String substring(String text) {

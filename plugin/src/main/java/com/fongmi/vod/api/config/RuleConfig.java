@@ -5,6 +5,9 @@ import com.fongmi.vod.bean.Rule;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 从 lyoTV 抽取，剥离 LiveConfig（直播规则合并）。插件只保留 VOD 规则。
+ */
 public class RuleConfig {
 
     private List<String> ads = List.of();

@@ -98,8 +98,17 @@ public class Class implements Parcelable, Diffable<Class> {
         this.filters = filters;
     }
 
+    public int getLand() {
+        return land == null ? 0 : land;
+    }
 
+    public int getCircle() {
+        return circle == null ? 0 : circle;
+    }
 
+    public float getRatio() {
+        return ratio == null ? 0 : ratio;
+    }
 
     public boolean getFilter() {
         return filter;
@@ -131,7 +140,7 @@ public class Class implements Parcelable, Diffable<Class> {
     }
 
     public Style getStyle() {
-        return null;
+        return Style.get(getLand(), getCircle(), getRatio());
     }
 
     @Override

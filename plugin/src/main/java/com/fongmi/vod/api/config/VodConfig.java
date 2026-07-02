@@ -1,7 +1,5 @@
 package com.fongmi.vod.api.config;
 
-import android.text.TextUtils;
-
 import com.fongmi.vod.App;
 import com.fongmi.vod.api.Decoder;
 import com.fongmi.vod.api.loader.BaseLoader;
@@ -25,6 +23,10 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/**
+ * 从 lyoTV 抽取，剥离 Live/Wall（直播壁纸订阅）、ConfigEvent/RefreshEvent（EventBus）。
+ * 只保留 VOD 订阅源加载与站点/解析/规则/Doh/Flags 管理。
+ */
 public class VodConfig extends BaseConfig {
 
     private static final String TAG = VodConfig.class.getSimpleName();
@@ -37,7 +39,6 @@ public class VodConfig extends BaseConfig {
     private List<String> ads;
     private List<String> flags;
     private List<Parse> parses;
-    private String wall;
 
     public static VodConfig get() {
         return Loader.INSTANCE;
@@ -80,7 +81,6 @@ public class VodConfig extends BaseConfig {
         ads = null;
         doh = null;
         home = null;
-        wall = null;
         parse = null;
         sites = null;
         flags = null;
@@ -248,10 +248,6 @@ public class VodConfig extends BaseConfig {
 
     public void setHome(Site site) {
         setHome(getConfig(), site, true);
-    }
-
-    public String getWall() {
-        return TextUtils.isEmpty(wall) ? "" : wall;
     }
 
     public Parse getParse(String name) {

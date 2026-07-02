@@ -4,7 +4,24 @@
             "outputFile": "com.fongmi.vod.plugin-mergeReleaseResources-23:/values-zh-rCN/values-zh-rCN.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\19480\\.gradle\\caches\\9.5.1\\transforms\\173d5f411e12a0087e9ec2044339a95b\\transformed\\appcompat-1.1.0\\res\\values-zh-rCN\\values-zh-rCN.xml",
+                    "source": "D:\\MyConfiguration\\qiwei.jing\\.gradle\\caches\\9.5.1\\transforms\\21523ef3be21099490c2354b2df808fc\\transformed\\core-1.8.0\\res\\values-zh-rCN\\values-zh-rCN.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "100",
+                        "endOffsets": "151"
+                    },
+                    "to": {
+                        "startLines": "46",
+                        "startColumns": "4",
+                        "startOffsets": "3450",
+                        "endColumns": "100",
+                        "endOffsets": "3546"
+                    }
+                },
+                {
+                    "source": "D:\\MyConfiguration\\qiwei.jing\\.gradle\\caches\\9.5.1\\transforms\\173d5f411e12a0087e9ec2044339a95b\\transformed\\appcompat-1.1.0\\res\\values-zh-rCN\\values-zh-rCN.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
@@ -21,7 +38,7 @@
                     }
                 },
                 {
-                    "source": "D:\\jqw\\project\\lyoTV-vod-plugin\\catvod\\build\\intermediates\\packaged_res\\release\\packageReleaseResources\\values-zh-rCN\\values-zh-rCN.xml",
+                    "source": "E:\\jqw\\programs\\lyoTV-vod-plugin\\catvod\\build\\intermediates\\packaged_res\\release\\packageReleaseResources\\values-zh-rCN\\values-zh-rCN.xml",
                     "from": {
                         "startLines": "2,8",
                         "startColumns": "4,4",
@@ -40,7 +57,7 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\19480\\.gradle\\caches\\9.5.1\\transforms\\6fd17b34f300608505dc2ed3f6dfe2b0\\transformed\\preference-1.2.1\\res\\values-zh-rCN\\values-zh-rCN.xml",
+                    "source": "D:\\MyConfiguration\\qiwei.jing\\.gradle\\caches\\9.5.1\\transforms\\6fd17b34f300608505dc2ed3f6dfe2b0\\transformed\\preference-1.2.1\\res\\values-zh-rCN\\values-zh-rCN.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8",
                         "startColumns": "4,4,4,4,4,4,4",
@@ -54,23 +71,6 @@
                         "startOffsets": "3035,3101,3182,3252,3551,3719,3799",
                         "endColumns": "65,80,69,119,167,79,76",
                         "endOffsets": "3096,3177,3247,3367,3714,3794,3871"
-                    }
-                },
-                {
-                    "source": "C:\\Users\\19480\\.gradle\\caches\\9.5.1\\transforms\\21523ef3be21099490c2354b2df808fc\\transformed\\core-1.8.0\\res\\values-zh-rCN\\values-zh-rCN.xml",
-                    "from": {
-                        "startLines": "2",
-                        "startColumns": "4",
-                        "startOffsets": "55",
-                        "endColumns": "100",
-                        "endOffsets": "151"
-                    },
-                    "to": {
-                        "startLines": "46",
-                        "startColumns": "4",
-                        "startOffsets": "3450",
-                        "endColumns": "100",
-                        "endOffsets": "3546"
                     }
                 }
             ]
@@ -79,7 +79,24 @@
             "outputFile": "com.fongmi.vod.plugin-release-25:/values-zh-rCN/values-zh-rCN.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\19480\\.gradle\\caches\\9.5.1\\transforms\\173d5f411e12a0087e9ec2044339a95b\\transformed\\appcompat-1.1.0\\res\\values-zh-rCN\\values-zh-rCN.xml",
+                    "source": "D:\\MyConfiguration\\qiwei.jing\\.gradle\\caches\\9.5.1\\transforms\\21523ef3be21099490c2354b2df808fc\\transformed\\core-1.8.0\\res\\values-zh-rCN\\values-zh-rCN.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "100",
+                        "endOffsets": "151"
+                    },
+                    "to": {
+                        "startLines": "46",
+                        "startColumns": "4",
+                        "startOffsets": "3450",
+                        "endColumns": "100",
+                        "endOffsets": "3546"
+                    }
+                },
+                {
+                    "source": "D:\\MyConfiguration\\qiwei.jing\\.gradle\\caches\\9.5.1\\transforms\\173d5f411e12a0087e9ec2044339a95b\\transformed\\appcompat-1.1.0\\res\\values-zh-rCN\\values-zh-rCN.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
@@ -96,7 +113,7 @@
                     }
                 },
                 {
-                    "source": "D:\\jqw\\project\\lyoTV-vod-plugin\\catvod\\build\\intermediates\\packaged_res\\release\\packageReleaseResources\\values-zh-rCN\\values-zh-rCN.xml",
+                    "source": "E:\\jqw\\programs\\lyoTV-vod-plugin\\catvod\\build\\intermediates\\packaged_res\\release\\packageReleaseResources\\values-zh-rCN\\values-zh-rCN.xml",
                     "from": {
                         "startLines": "2,8",
                         "startColumns": "4,4",
@@ -115,7 +132,7 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\19480\\.gradle\\caches\\9.5.1\\transforms\\6fd17b34f300608505dc2ed3f6dfe2b0\\transformed\\preference-1.2.1\\res\\values-zh-rCN\\values-zh-rCN.xml",
+                    "source": "D:\\MyConfiguration\\qiwei.jing\\.gradle\\caches\\9.5.1\\transforms\\6fd17b34f300608505dc2ed3f6dfe2b0\\transformed\\preference-1.2.1\\res\\values-zh-rCN\\values-zh-rCN.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8",
                         "startColumns": "4,4,4,4,4,4,4",
@@ -129,23 +146,6 @@
                         "startOffsets": "3035,3101,3182,3252,3551,3719,3799",
                         "endColumns": "65,80,69,119,167,79,76",
                         "endOffsets": "3096,3177,3247,3367,3714,3794,3871"
-                    }
-                },
-                {
-                    "source": "C:\\Users\\19480\\.gradle\\caches\\9.5.1\\transforms\\21523ef3be21099490c2354b2df808fc\\transformed\\core-1.8.0\\res\\values-zh-rCN\\values-zh-rCN.xml",
-                    "from": {
-                        "startLines": "2",
-                        "startColumns": "4",
-                        "startOffsets": "55",
-                        "endColumns": "100",
-                        "endOffsets": "151"
-                    },
-                    "to": {
-                        "startLines": "46",
-                        "startColumns": "4",
-                        "startOffsets": "3450",
-                        "endColumns": "100",
-                        "endOffsets": "3546"
                     }
                 }
             ]

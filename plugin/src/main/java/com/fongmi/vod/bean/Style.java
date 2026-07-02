@@ -8,12 +8,18 @@ import androidx.annotation.Nullable;
 
 import com.google.gson.annotations.SerializedName;
 
+/**
+ * 从 lyoTV 抽取，去掉原 getViewType() 对 UI 层 ViewType 的依赖（插件无 UI）。
+ */
 public class Style implements Parcelable {
 
     @SerializedName("type")
     private String type;
     @SerializedName("ratio")
     private float ratio;
+
+    public Style() {
+    }
 
     public Style(String type) {
         this.type = type;

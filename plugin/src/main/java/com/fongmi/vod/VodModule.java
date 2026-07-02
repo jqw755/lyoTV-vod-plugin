@@ -57,10 +57,10 @@ public class VodModule extends UniModule {
         }
     }
 
-    private static com.google.gson.JsonObject error(int code, String msg) {
-        com.google.gson.JsonObject obj = new com.google.gson.JsonObject();
-        obj.addProperty("code", code);
-        obj.addProperty("msg", msg == null ? "error" : msg);
+    private static JSONObject error(int code, String msg) {
+        JSONObject obj = new JSONObject();
+        obj.put("code", code);
+        obj.put("msg", msg == null ? "error" : msg);
         return obj;
     }
 
@@ -87,6 +87,34 @@ public class VodModule extends UniModule {
     @UniJSMethod(uiThread = false)
     public void search(JSONObject args, UniJSCallback cb) {
         safeCall(args, cb, VodBridge::search);
+    }
+
+    /** 获取所有可搜索站点列表，前端用来展示左侧站名栏 */
+    @UniJSMethod(uiThread = false)
+    public void getSites(JSONObject args, UniJSCallback cb) {
+        try {
+            com.alibaba.fastjson.JSONArray arr = new com.alibaba.fastjson.JSONArray();
+            for (com.fongmi.vod.bean.Site s : com.fongmi.vod.api.config.VodConfig.get().getSites()) {
+                if (s.getSearchable() == 0) continue;
+                com.alibaba.fastjson.JSONObject obj = new com.alibaba.fastjson.JSONObject();
+                obj.put("key", s.getKey());
+                obj.put("name", s.getName());
+                arr.add(obj);
+            }
+            com.alibaba.fastjson.JSONObject ret = new com.alibaba.fastjson.JSONObject();
+            ret.put("code", 0);
+            ret.put("data", arr);
+            cb.invoke(ret);
+        } catch (Throwable e) {
+            android.util.Log.e("VodPlugin", "getSites 异常", e);
+            cb.invoke(error(-2, e.getMessage()));
+        }
+    }
+
+    /** 搜索单个站点，结果含 site_name 字段方便前端分组 */
+    @UniJSMethod(uiThread = false)
+    public void searchSite(JSONObject args, UniJSCallback cb) {
+        safeCall(args, cb, VodBridge::searchSite);
     }
 
     @UniJSMethod(uiThread = false)

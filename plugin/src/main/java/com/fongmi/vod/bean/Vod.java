@@ -11,7 +11,6 @@ import androidx.annotation.Nullable;
 
 import com.fongmi.vod.App;
 import com.fongmi.vod.impl.Diffable;
-import com.fongmi.vod.utils.Sniffer;
 import com.fongmi.vod.utils.Util;
 import com.github.catvod.utils.Trans;
 import com.google.gson.annotations.SerializedName;
@@ -44,6 +43,10 @@ public class Vod implements Parcelable, Diffable<Vod> {
     @Element(name = "pic", required = false)
     @SerializedName("vod_pic")
     private String vodPic;
+    @SerializedName("site_name")
+    private String siteName;
+    @SerializedName("site_key")
+    private String siteKey;
     @Element(name = "note", required = false)
     @SerializedName("vod_remarks")
     private String vodRemarks;
@@ -147,6 +150,11 @@ public class Vod implements Parcelable, Diffable<Vod> {
         return TextUtils.isEmpty(vodPic) ? "" : vodPic.trim();
     }
 
+    /** 若原始 URL 含 @Referer=…，返回本地代理地址；否则返回 getPic() 的干净 URL */
+    public String getPicProxyUrl(int proxyPort) {
+        return com.fongmi.vod.utils.ImageProxy.get().rewrite(vodPic);
+    }
+
     public void setPic(String vodPic) {
         this.vodPic = vodPic;
     }
@@ -241,6 +249,8 @@ public class Vod implements Parcelable, Diffable<Vod> {
 
     public void setSite(Site site) {
         this.site = site;
+        this.siteName = site == null ? "" : site.getName();
+        this.siteKey = site == null ? "" : site.getKey();
     }
 
     public String getSiteName() {
@@ -300,10 +310,10 @@ public class Vod implements Parcelable, Diffable<Vod> {
         this.vodName = Trans.s2t(vodName);
         this.vodArea = Trans.s2t(vodArea);
         this.typeName = Trans.s2t(typeName);
-        if (vodActor != null) this.vodActor = Sniffer.CLICKER.matcher(vodActor).find() ? vodActor : Trans.s2t(vodActor);
-        if (vodRemarks != null) this.vodRemarks = Sniffer.CLICKER.matcher(vodRemarks).find() ? vodRemarks : Trans.s2t(vodRemarks);
-        if (vodContent != null) this.vodContent = Sniffer.CLICKER.matcher(vodContent).find() ? vodContent : Trans.s2t(vodContent);
-        if (vodDirector != null) this.vodDirector = Sniffer.CLICKER.matcher(vodDirector).find() ? vodDirector : Trans.s2t(vodDirector);
+        if (vodActor != null) this.vodActor = Trans.s2t(vodActor);
+        if (vodRemarks != null) this.vodRemarks = Trans.s2t(vodRemarks);
+        if (vodContent != null) this.vodContent = Trans.s2t(vodContent);
+        if (vodDirector != null) this.vodDirector = Trans.s2t(vodDirector);
         return this;
     }
 

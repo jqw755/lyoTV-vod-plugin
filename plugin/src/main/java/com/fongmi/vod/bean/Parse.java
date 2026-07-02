@@ -8,7 +8,6 @@ import androidx.annotation.Nullable;
 import com.fongmi.vod.App;
 import com.fongmi.vod.gson.HeaderAdapter;
 import com.fongmi.vod.impl.Diffable;
-import com.fongmi.vod.utils.ResUtil;
 import com.fongmi.vod.utils.UrlUtil;
 import com.github.catvod.utils.Util;
 import com.google.gson.JsonElement;
@@ -21,6 +20,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+/**
+ * 从 lyoTV 抽取，god() 名字硬编码，去掉 R/ResUtil 依赖。
+ */
 public class Parse implements Diffable<Parse> {
 
     @SerializedName("name")
@@ -48,7 +50,7 @@ public class Parse implements Diffable<Parse> {
 
     public static Parse god() {
         Parse parse = new Parse();
-        parse.setName("Super");
+        parse.setName("解析");
         parse.setType(4);
         return parse;
     }

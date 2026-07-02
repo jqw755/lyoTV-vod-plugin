@@ -26,7 +26,7 @@ public class Filter implements Parcelable {
     @SerializedName("init")
     private String init;
     @SerializedName("value")
-    private List<String> value;
+    private List<Value> value;
 
     public Filter() {
     }
@@ -36,6 +36,7 @@ public class Filter implements Parcelable {
         this.name = in.readString();
         this.init = in.readString();
         this.value = new ArrayList<>();
+        in.readList(this.value, Value.class.getClassLoader());
     }
 
     public static Filter objectFrom(JsonElement element) {
@@ -60,16 +61,17 @@ public class Filter implements Parcelable {
         return init;
     }
 
-    public List<String> getValue() {
+    public List<Value> getValue() {
         return value == null ? Collections.emptyList() : value;
     }
 
     public String setSelected(String v) {
-        for (String item : getValue()) if (item.equals(v)) return v;
+        getValue().stream().filter(item -> item.equals(Value.create(v))).findFirst().ifPresent(item -> item.setSelected(true));
         return v;
     }
 
     public Filter check() {
+        Iterables.removeIf(getValue(), Predicates.isNull());
         return this;
     }
 
@@ -79,11 +81,13 @@ public class Filter implements Parcelable {
         copy.name = this.name;
         copy.init = this.init;
         copy.value = new ArrayList<>();
+        getValue().forEach(item -> copy.value.add(item.copy()));
         return copy;
     }
 
     public Filter trans() {
         if (Trans.pass()) return this;
+        getValue().forEach(Value::trans);
         return this;
     }
 

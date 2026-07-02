@@ -7,6 +7,7 @@ import android.os.Looper;
 
 import androidx.core.os.HandlerCompat;
 
+import com.fongmi.vod.utils.ImageProxy;
 import com.google.gson.Gson;
 
 /**
@@ -38,6 +39,8 @@ public class App {
 
     public static void init(Context context) {
         instance().context = context.getApplicationContext();
+        // 启动本地图片代理（懒初始化，start() 幂等）
+        ImageProxy.get().start();
     }
 
     public static Gson gson() {

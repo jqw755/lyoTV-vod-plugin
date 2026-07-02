@@ -14,7 +14,7 @@ import java.util.List;
 public class Url {
 
     @SerializedName("values")
-    private List<String> values;
+    private List<Value> values;
     @SerializedName("position")
     private int position;
 
@@ -30,7 +30,7 @@ public class Url {
         return new Url();
     }
 
-    public List<String> getValues() {
+    public List<Value> getValues() {
         return values = values == null ? new ArrayList<>() : values;
     }
 
@@ -47,26 +47,26 @@ public class Url {
     }
 
     public String v(int position) {
-        return position >= getValues().size() ? "" : getValues().get(position);
+        return position >= getValues().size() ? "" : getValues().get(position).getV();
     }
 
     public String n(int position) {
-        return position >= getValues().size() ? "" : getValues().get(position);
+        return position >= getValues().size() ? "" : getValues().get(position).getN();
     }
 
     public Url add(String v) {
-        getValues().add(v);
+        getValues().add(Value.create(v));
         return this;
     }
 
     public Url add(String n, String v) {
-        getValues().add(v);
+        getValues().add(Value.create(n, v));
         return this;
     }
 
     public Url replace(String url) {
         if (getValues().isEmpty()) add(url);
-        else getValues().set(getPosition(), url);
+        else getValues().get(getPosition()).setV(url);
         return this;
     }
 

@@ -5,8 +5,6 @@ import android.text.TextUtils;
 import com.fongmi.vod.App;
 import com.fongmi.vod.bean.Config;
 import com.fongmi.vod.impl.Callback;
-import com.fongmi.vod.server.Server;
-import com.fongmi.vod.utils.Notify;
 import com.fongmi.vod.utils.Task;
 import com.fongmi.vod.utils.UrlUtil;
 import com.github.catvod.bean.Header;
@@ -22,9 +20,15 @@ import java.util.List;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * 从 lyoTV 抽取，剥离 Server（本地代理服务器）/Notify（UI 通知）/ConfigEvent（EventBus）依赖。
+ * 插件无本地服务器、无 UI、无 EventBus，加载结果通过 Callback 回传桥接层。
+ */
 abstract class BaseConfig {
 
     public static final int VOD = 0;
+    public static final int LIVE = 1;
+    public static final int WALL = 2;
 
     private final AtomicInteger taskId = new AtomicInteger(0);
 
@@ -44,7 +48,6 @@ abstract class BaseConfig {
         try {
             if (isLoaded()) return;
             if (config == null) config = defaultConfig();
-            Server.get().start();
             load(config);
         } catch (Throwable e) {
             e.printStackTrace();
@@ -52,7 +55,7 @@ abstract class BaseConfig {
     }
 
     protected void postEvent() {
-        // 插件版无 EventBus：原 fongmi 在此发 ConfigEvent 通知 UI 刷新，插件用 Callback 回传 JS，留空。
+        // 插件无 EventBus，加载结果由 Callback 承载
     }
 
     public boolean needSync(String url) {
@@ -84,23 +87,22 @@ abstract class BaseConfig {
 
     protected void loadConfig(int id, Config config, Callback callback) {
         try {
-            android.util.Log.d("VodPlugin", "loadConfig 1/4 Server.start...");
-            Server.get().start();
-            android.util.Log.d("VodPlugin", "loadConfig 2/4 OkHttp.cancel + 下载订阅...");
             OkHttp.cancel(getTag());
             load(config);
-            android.util.Log.d("VodPlugin", "loadConfig 3/4 订阅下载解析完成");
             if (taskId.get() != id) return;
             if (config.equals(this.config)) config.update();
-            android.util.Log.d("VodPlugin", "loadConfig 4/4 回调 success");
+            android.util.Log.d(getTag(), "loadConfig success url=" + config.getUrl());
             App.post(callback::success);
         } catch (Throwable e) {
-            android.util.Log.e("VodPlugin", "loadConfig failed", e);
-            if (isCanceled(e)) return;
+            android.util.Log.e(getTag(), "loadConfig 异常: " + e.getClass().getName() + ": " + e.getMessage(), e);
+            e.printStackTrace();
+            if (isCanceled(e)) {
+                android.util.Log.w(getTag(), "loadConfig 被取消(忽略回调): " + e.getMessage());
+                return;
+            }
             if (taskId.get() != id) return;
-            String msg = e.getClass().getSimpleName() + ": " + (e.getMessage() != null ? e.getMessage() : "no message");
-            android.util.Log.d("VodPlugin", "loadConfig 回调 error: " + msg);
-            App.post(() -> callback.error(msg));
+            if (TextUtils.isEmpty(config.getUrl())) App.post(() -> callback.error(""));
+            else App.post(() -> callback.error(e.getMessage() == null ? "error" : e.getMessage()));
         } finally {
             if (taskId.get() == id) postEvent();
         }
@@ -109,7 +111,11 @@ abstract class BaseConfig {
     protected boolean isCanceled(Throwable e) {
         if ("Canceled".equals(e.getMessage())) return true;
         if (e instanceof InterruptedException) return true;
+        // SocketTimeoutException 是 InterruptedIOException 的子类，但代表真实网络超时，
+        // 必须回调 error 让前端感知，不能当作"主动取消"静默丢弃
+        if (e instanceof java.net.SocketTimeoutException) return false;
         if (e instanceof InterruptedIOException) return true;
+        if (e.getCause() instanceof java.net.SocketTimeoutException) return false;
         return e.getCause() instanceof InterruptedIOException;
     }
 

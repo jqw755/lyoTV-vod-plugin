@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:app.liuyingyong.cn)",
+      "Bash(awk -F. '{print $1\".\"$2}')",
+      "Bash(sed -E 's/.*found in modules //')",
+      "Bash(awk -F. '{print $1\".\"$2\".\"$3}')",
+      "Bash(awk -F. '{print $1}')",
+      "Bash(awk '{print $6\" \"$7}')",
+      "Bash(cat settings.gradle)",
+      "Bash(cat build.gradle)",
+      "Bash(ls -d */)",
+      "Bash(./gradlew.bat :plugin:compileDebugJavaWithJavac --console=plain)",
+      "Bash(rm -rf player server sniffer)",
+      "Bash(rm -f bean/Danmaku.java bean/Drm.java bean/Sub.java gson/DanmakuAdapter.java impl/ParseCallback.java)",
+      "Bash(cd *)",
+      "Bash(./gradlew.bat :plugin:compileDebugJavaWithJavac --rerun-tasks --console=plain)",
+      "Bash(./gradlew.bat :plugin:fatAar --console=plain)",
+      "Bash(cmd //c \"dir \\\\\"D:\\\\MyConfiguration\\\\qiwei.jing\\\\Desktop\\\\\" 2>nul\")",
+      "Bash(jar tf *)",
+      "Bash(mkdir -p /tmp/fatcheck)",
+      "Read(//tmp/**)",
+      "Bash(jar xf *)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(rm -rf /tmp/fatcheck)",
+      "Bash(grep \"com/google/common/util/concurrent/ListenableFuture.class$\")",
+      "Bash(echo \"exit: $? ; should be empty \\(not found\\)\")",
+      "Bash(grep \"ListenableFuture.class$\")"
+    ]
+  }
+}

@@ -37,11 +37,12 @@ android {
 }
 
 dependencies {
-    implementation project(':catvod')
-    implementation project(':quickjs')
-    // 源解析链路必需：simple-xml（Result/Vod/Class 的 @Root/@Element XML 解析）、nanohttpd（本地代理服务器）
+    // api：让 catvod/quickjs 的传递依赖（含 quickjs-android 引擎 aar）进入 plugin 的
+    // releaseCompileClasspath，供 fatAar 的 ArtifactView 收集 classes 与 native .so
+    api project(':catvod')
+    api project(':quickjs')
+    // 源解析链路必需：simple-xml（Result/Vod/Class 的 @Root/@Element XML 解析）
     implementation libs.simple.xml
-    implementation libs.nanohttpd
     // gson / okhttp / guava 由 catvod 的 api 传递暴露，显式声明以防被裁剪
     implementation libs.gson
     implementation(libs.bundles.okhttp) {
@@ -50,6 +51,209 @@ dependencies {
     implementation libs.guava
     // uni-app 原生插件 SDK：宿主已包含，仅编译期引用，不打包进 aar
     compileOnly fileTree(dir: "libs", include: ["*.aar", "*.jar"])
-    // uni @UniJSMethod 的 JSONObject 参数是 fastjson 类型，aar 不自带需显式引入
-    implementation 'com.alibaba:fastjson:1.2.83'
+    // uni @UniJSMethod 的 JSONObject 参数是 fastjson 类型，宿主及 uni 基座已自带
+    compileOnly 'com.alibaba:fastjson:1.2.83'
+}
+
+// ============================================================
+// Fat AAR（自实现，AGP 9 兼容；kezong fat-aar 1.3.8 依赖已删除的 Transform API，不可用）
+// 合并目标：plugin + catvod + quickjs + 全部外部依赖（gson/okhttp/guava/simple-xml/
+// nanohttpd/fastjson 及 catvod 的 api 传递依赖 brotli/sardine/smbj/zxing 等），
+// 以及 quickjs-android 的 native .so，生成一个自包含的 AAR，供 lyoTVMobile 的 uni
+// 原生插件直接使用（integrateType=aar 不解析 Gradle 传递依赖）。
+// 用法：gradlew.bat :plugin:fatAar
+// 产出：plugin/build/outputs/aar/plugin-release.aar（直接覆盖普通产物，部署时拷贝此文件即可）
+// ============================================================
+tasks.register('fatAar') {
+    group = 'Build'
+    description = '合并 plugin/catvod/quickjs 及全部外部依赖、native .so 到单个自包含 AAR'
+
+    // 先编译三个模块的 release AAR
+    dependsOn ':plugin:assembleRelease'
+    dependsOn ':catvod:assembleRelease'
+    dependsOn ':quickjs:assembleRelease'
+
+    // doLast 里取 runtimeClasspath（配置阶段该 configuration 尚未就绪）
+    doLast {
+        def buildDir = project.layout.buildDirectory.get().asFile
+        def outDir = new File(buildDir, "outputs/aar")
+        outDir.mkdirs()
+
+        // 三个模块 AAR
+        def pluginAar  = new File(outDir, "plugin-release.aar")
+        def catvodAar  = new File(rootProject.findProject(':catvod').layout.buildDirectory.get().asFile, "outputs/aar/catvod-release.aar")
+        def quickjsAar = new File(rootProject.findProject(':quickjs').layout.buildDirectory.get().asFile, "outputs/aar/quickjs-release.aar")
+
+        def workDir  = new File(buildDir, "tmp/fat-aar")
+        def mergeDir = new File(workDir, "merge")
+        delete workDir
+        mergeDir.mkdirs()
+
+        def moduleAars = [pluginAar, catvodAar, quickjsAar]
+
+        // 提取所有模块 AAR
+        moduleAars.each { aar ->
+            copy {
+                from zipTree(aar)
+                into new File(workDir, aar.name.replace('.aar', ''))
+            }
+        }
+
+        // —— 合并 classes（三模块 classes.jar + 全部外部依赖的 classes.jar / aar 内 classes.jar）——
+        def classesDir = new File(mergeDir, "classes")
+        classesDir.mkdirs()
+
+        // 三模块的 classes.jar
+        moduleAars.each { aar ->
+            def jarFile = new File(new File(workDir, aar.name.replace('.aar', '')), "classes.jar")
+            if (jarFile.exists()) {
+                copy { from zipTree(jarFile); into classesDir }
+            }
+        }
+
+        // 外部依赖：用 ArtifactView 取 releaseCompileClasspath 中【外部 Maven 组件】的原始 artifact，
+        // 用 group 白名单只保留运行期真正需要的库；排除项目依赖、本地文件依赖（uni SDK），
+        // 以及 androidx.*/dcloud/weex 等宿主基座已提供的库（重复打包会冲突）。
+        def cpCfg = project.configurations.findByName('releaseCompileClasspath')
+                ?: project.configurations.findByName('compileClasspath')
+        // 需要打进 fat aar 的依赖 group 白名单
+        // 需要打进 fat aar 的依赖 group 白名单
+        // 注意：宿主及 uni 云打包基座(lib.5plus.base+uniapp-v8)已自带的库不可列入，
+        // 否则 checkReleaseDuplicateClasses 失败（fastjson/kotlin-stdlib/okhttp/okio/listenablefuture/annotations）
+        def includeGroups = [
+                'com.google.code.gson',     // gson
+                'com.squareup.okhttp3',     // okhttp-dnsoverhttps / logging-interceptor（okhttp 核心本体 exclude）
+                'com.squareup.okio',        // okio（核心本体 exclude）
+                'com.google.guava',         // guava / failureaccess（listenablefuture exclude）
+                'org.simpleframework',      // simple-xml
+                'org.brotli',               // brotli dec
+                'com.github.thegrizzlylabs',// sardine
+                'com.hierynomus',           // smbj
+                'com.google.zxing',         // zxing core
+                'com.orhanobut',            // logger
+                'wang.harlon.quickjs',      // wrapper-android（含 native .so）
+                'com.google.code.findbugs', // jsr305
+                'com.google.errorprone',    // error_prone_annotations
+                'com.google.j2objc',        // j2objc-annotations
+                'org.jspecify',             // jspecify
+        ] as Set
+        // uni 云打包宿主基座(lib.5plus.base + uniapp-v8)已自带的 artifact，必须排除，否则
+        // checkReleaseDuplicateClasses 失败。这些库运行期由宿主提供，fat aar 不打。
+        def excludeArtifacts = [
+                'com.alibaba:fastjson',
+                'org.jetbrains.kotlin:kotlin-stdlib',
+                'org.jetbrains.kotlin:kotlin-stdlib-jdk7',
+                'org.jetbrains.kotlin:kotlin-stdlib-jdk8',
+                'org.jetbrains:annotations',
+                'com.google.guava:listenablefuture',
+                'com.googlecode.juniversalchardet:juniversalchardet',
+                'com.squareup.okhttp3:okhttp',
+                'com.squareup.okio:okio',
+        ] as Set
+        def externalFiles = []
+        if (cpCfg != null) {
+            def view = cpCfg.incoming.artifactView { config ->
+                config.componentFilter { id ->
+                    // 先用类型名排除项目依赖与本地文件依赖，只留外部 Maven 组件
+                    def sn = id.class.simpleName
+                    sn == 'DefaultModuleComponentIdentifier'
+                }
+                config.lenient(true)
+            }
+            view.artifacts.each { a ->
+                def cid = a.id.componentIdentifier
+                // 诊断：打印每个候选 artifact 的 group:module，定位 excludeArtifacts 为何不匹配
+                logger.lifecycle("  [cand] ${cid.group}:${cid.module}  <- ${a.file.name}")
+                if (!includeGroups.contains(cid.group)) return
+                // 排除宿主基座已提供的 artifact
+                if (excludeArtifacts.contains("${cid.group}:${cid.module}".toString())) return
+                def f = a.file
+                def name = f.name.toLowerCase()
+                if (name.endsWith('.jar') || name.endsWith('.aar')) externalFiles.add(f)
+            }
+        }
+        logger.lifecycle("fat-aar: 发现 ${externalFiles.size()} 个外部依赖（白名单+宿主排除后）")
+        externalFiles.each { f ->
+            logger.lifecycle("  - ${f.name}")
+            if (f.name.toLowerCase().endsWith('.aar')) {
+                // aar：解出 classes.jar 再展开，并合并 jni/（quickjs-android 的 .so 由此带入）
+                def tmp = new File(workDir, "ext_${f.name}")
+                tmp.mkdirs()
+                copy { from zipTree(f); into tmp }
+                def innerJar = new File(tmp, "classes.jar")
+                if (innerJar.exists()) copy { from zipTree(innerJar); into classesDir }
+                def jniDir = new File(tmp, "jni")
+                if (jniDir.exists()) copy { from jniDir; into new File(mergeDir, "jni") }
+            } else {
+                copy { from zipTree(f); into classesDir }
+            }
+        }
+
+        // 打包合并后的 classes.jar（aar 的 classes.jar 不强制 manifest，jar 本质即 zip）
+        // 用 ant.zip 替代 ant.jar：Gradle 9 下 ant.jar 的 duplicate 属性不被接受
+
+        // 注：曾误删 Guava 的 ListenableFuture.class（假设宿主提供 listenablefuture 独立包），
+        // 但实测宿主基座不含该类，导致 Guava 整条 FluentFuture/AbstractFutureState 链断裂，
+        // 运行报 NoClassDefFoundError。现已保留 Guava 完整类，excludeArtifacts 仍排除独立的
+        // com.google.guava:listenablefuture artifact（guava 主体已含同名类，避免 duplicate）。
+
+        def classesJarFile = new File(mergeDir, "classes.jar")
+        classesJarFile.delete()
+        ant.zip(destfile: classesJarFile) {
+            fileset(dir: classesDir) { exclude(name: "module-info.class") }
+        }
+
+        // —— 合并 jni/（三模块 + 外部依赖 aar 已并入）——
+        moduleAars.each { aar ->
+            def jniDir = new File(new File(workDir, aar.name.replace('.aar', '')), "jni")
+            if (jniDir.exists()) copy { from jniDir; into new File(mergeDir, "jni") }
+        }
+
+        // —— 合并 R.txt（跳过 doh_name/doh_url，值已从 values.xml 排除，但 R.txt 残留仍会触发 aapt2 Duplicate key）——
+        def rTxtLines = []
+        moduleAars.each { aar ->
+            def rTxt = new File(new File(workDir, aar.name.replace('.aar', '')), "R.txt")
+            if (rTxt.exists()) rTxtLines.addAll(rTxt.readLines('UTF-8').findAll { !it.contains('doh_') })
+        }
+        new File(mergeDir, "R.txt").withWriter('UTF-8') { w -> rTxtLines.each { w.writeLine(it) } }
+
+        // —— 合并 res/（跳过 catvod 的 values.xml：含 doh_name/doh_url 数组，会与宿主或自身重复致 aapt2 Duplicate key；
+        // Doh.get() 已容错资源缺失，DoH 仅 DNS 优化不影响订阅加载）——
+        moduleAars.each { aar ->
+            def resDir = new File(new File(workDir, aar.name.replace('.aar', '')), "res")
+            if (resDir.exists()) copy {
+                from resDir
+                into new File(mergeDir, "res")
+                exclude "**/values.xml"
+            }
+        }
+
+        // —— 合并 assets/ ——
+        moduleAars.each { aar ->
+            def assetsDir = new File(new File(workDir, aar.name.replace('.aar', '')), "assets")
+            if (assetsDir.exists()) copy { from assetsDir; into new File(mergeDir, "assets") }
+        }
+
+        // —— AndroidManifest（用主模块的）——
+        copy { from new File(workDir, "plugin-release/AndroidManifest.xml"); into mergeDir }
+
+        // —— proguard.txt 合并 ——
+        def proguardLines = []
+        moduleAars.each { aar ->
+            def pf = new File(new File(workDir, aar.name.replace('.aar', '')), "proguard.txt")
+            if (pf.exists()) proguardLines.addAll(pf.readLines('UTF-8'))
+        }
+        if (proguardLines) {
+            new File(mergeDir, "proguard.txt").withWriter('UTF-8') { w -> proguardLines.each { w.writeLine(it) } }
+        }
+
+        // —— 打包成 fat AAR（直接覆盖 plugin-release.aar，便于部署）——
+        def fatAarFile = new File(outDir, "plugin-release.aar")
+        ant.zip(destfile: fatAarFile) {
+            fileset(dir: mergeDir) { exclude(name: "classes/") }
+        }
+
+        delete workDir
+        logger.lifecycle("✅ Fat AAR 生成完毕: ${fatAarFile} (${(fatAarFile.length()/1024).intValue()} KB)")
+    }
 }

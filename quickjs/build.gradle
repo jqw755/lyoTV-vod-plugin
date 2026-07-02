@@ -20,6 +20,7 @@ android {
 
 dependencies {
     implementation project(':catvod')
-    implementation libs.quickjs.android
+    // api 暴露：fatAar 需从 :plugin 的 classpath 收集 wrapper-android 的 classes 与 native .so
+    api libs.quickjs.android
     implementation libs.quickjs.java
 }
