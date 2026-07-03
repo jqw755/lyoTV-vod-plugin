@@ -37,7 +37,19 @@
       "Bash(cmd /c \"E:\\\\jqw\\\\programs\\\\lyoTVMobile\\\\make.bat\")",
       "Bash(cmd /c \"echo off && echo [1/5] 编译插件 && call gradlew.bat :plugin:fatAar --no-daemon && echo ok\")",
       "Read(//c/Users/**)",
-      "Bash(find /d -name \"lyoTV_logo*\")"
+      "Bash(find /d -name \"lyoTV_logo*\")",
+      "Bash(rm \"E:/jqw/programs/Android-SDK@5.07.82603_20260414/HBuilder-Integrate-AS/simpleDemo/src/main/res/drawable/icon.png\")",
+      "Bash(cp \"D:/MyConfiguration/qiwei.jing/Desktop/lyoTV_logo.jpg\" \"E:/jqw/programs/Android-SDK@5.07.82603_20260414/HBuilder-Integrate-AS/simpleDemo/src/main/res/drawable/icon.jpg\")",
+      "Bash(cmd /c \"dir /s /b D:\\\\HBuilder* 2>nul\")",
+      "Bash(cmd /c \"dir /s /b C:\\\\HBuilder* 2>nul\")",
+      "Bash(cmd /c \"dir /s /b D:\\\\MyConfiguration\\\\qiwei.jing\\\\AppData\\\\Local\\\\HBuilder* 2>nul\")",
+      "Bash(cmd /c \"cd /d E:\\\\jqw\\\\programs\\\\lyoTVMobile && make.bat\" 2>&1)",
+      "Bash(cmd /c \"cd /d E:\\\\jqw\\\\programs\\\\lyoTVMobile && make.bat > E:\\\\jqw\\\\programs\\\\lyoTVMobile\\\\make_output.txt 2>&1\")",
+      "Bash(echo '@echo off')",
+      "Bash(echo 'cd /d E:\\\\jqw\\\\programs\\\\lyoTVMobile')",
+      "Bash(echo 'call make.bat > E:\\\\jqw\\\\programs\\\\lyoTVMobile\\\\_log.txt 2>&1')",
+      "Bash(echo 'echo EXIT_CODE=%errorlevel% >> E:\\\\jqw\\\\programs\\\\lyoTVMobile\\\\_log.txt')",
+      "Bash(cmd /c \"C:\\\\tmp\\\\wrapper.bat\")"
     ]
   }
 }
