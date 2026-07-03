@@ -1,0 +1,6 @@
+[
+    {
+        "merged": "com.fongmi.vod.plugin-release-25:/xml/network_security_config.xml",
+        "source": "com.fongmi.vod.plugin-main-26:/xml/network_security_config.xml"
+    }
+]

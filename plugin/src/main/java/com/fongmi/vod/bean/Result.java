@@ -340,14 +340,15 @@ public class Result implements Parcelable {
     @NonNull
     @Override
     public String toString() {
-        // 将每个 vod 的图片 URL 写回干净的值（爬虫附加的 @Referer=... 后缀已由 Vod.getPic() 清理，
-        // 但 Gson 序列化使用字段值而非 getter，需先通过 setter 同步清理后的值到字段）
+        // 图片代理：有 @Referer= 等后缀的 URL 走本地 ImageProxy（带自定义 Header），
+        // 无后缀的干净 URL 直接透传。
         int proxyPort = com.fongmi.vod.utils.ImageProxy.get().start();
         for (Vod v : getList()) {
-            if (proxyPort > 0) {
+            String pic = v.getPic();
+            if (pic.contains("@") && proxyPort > 0) {
                 v.setPic(v.getPicProxyUrl(proxyPort));
             } else {
-                v.setPic(v.getPic());
+                v.setPic(v.getCleanPic());
             }
         }
         return App.gson().toJson(this);

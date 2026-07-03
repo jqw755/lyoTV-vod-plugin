@@ -91,7 +91,6 @@ abstract class BaseConfig {
             load(config);
             if (taskId.get() != id) return;
             if (config.equals(this.config)) config.update();
-            android.util.Log.d(getTag(), "loadConfig success url=" + config.getUrl());
             App.post(callback::success);
         } catch (Throwable e) {
             android.util.Log.e(getTag(), "loadConfig 异常: " + e.getClass().getName() + ": " + e.getMessage(), e);

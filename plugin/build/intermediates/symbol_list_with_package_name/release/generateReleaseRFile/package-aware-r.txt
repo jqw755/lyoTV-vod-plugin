@@ -4,3 +4,4 @@ string error_config_get
 string parse_god
 string push
 string push_image
+xml network_security_config

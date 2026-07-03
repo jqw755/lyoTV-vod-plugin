@@ -25,7 +25,19 @@
       "Bash(rm -rf /tmp/fatcheck)",
       "Bash(grep \"com/google/common/util/concurrent/ListenableFuture.class$\")",
       "Bash(echo \"exit: $? ; should be empty \\(not found\\)\")",
-      "Bash(grep \"ListenableFuture.class$\")"
+      "Bash(grep \"ListenableFuture.class$\")",
+      "Bash(./gradlew :simpleDemo:assembleDebug)",
+      "Bash(unzip -l \"plugin/build/outputs/aar/plugin-release.aar\")",
+      "Bash(unzip -p \"plugin/build/outputs/aar/plugin-release.aar\" \"assets/dcloud_uniplugins.json\")",
+      "Bash(unzip -p \"plugin/build/outputs/aar/plugin-release.aar\" \"classes.jar\")",
+      "Bash(./gradlew :plugin:fatAar --no-daemon)",
+      "Bash(grep -oP '.{0,100}127\\\\.0\\\\.0\\\\.1.{0,100}' \"E:/jqw/programs/Android-SDK@5.07.82603_20260414/HBuilder-Integrate-AS/simpleDemo/src/main/assets/apps/__UNI__8112C78/www/app-service.js\")",
+      "Bash(sed -i 's/||e\\\\.startsWith\\(\"http:\\\\/\\\\/127\\\\.0\\\\.0\\\\.1\"\\)//g' app-service.js)",
+      "Bash(grep -oP '.{0,60}127\\\\.0\\\\.0\\\\.1.{0,60}' app-service.js)",
+      "Bash(cmd /c \"E:\\\\jqw\\\\programs\\\\lyoTVMobile\\\\make.bat\")",
+      "Bash(cmd /c \"echo off && echo [1/5] 编译插件 && call gradlew.bat :plugin:fatAar --no-daemon && echo ok\")",
+      "Read(//c/Users/**)",
+      "Bash(find /d -name \"lyoTV_logo*\")"
     ]
   }
 }

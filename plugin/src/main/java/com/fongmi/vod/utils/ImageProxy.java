@@ -55,11 +55,9 @@ public class ImageProxy {
             serverSocket.bind(new InetSocketAddress("127.0.0.1", 0));
             port = serverSocket.getLocalPort();
             running = true;
-            Log.d(TAG, "ImageProxy 启动, port=" + port);
             new Thread(this::acceptLoop, "img-proxy").start();
             return port;
         } catch (IOException e) {
-            Log.e(TAG, "ImageProxy 启动失败", e);
             return -1;
         }
     }

@@ -150,6 +150,14 @@ public class Vod implements Parcelable, Diffable<Vod> {
         return TextUtils.isEmpty(vodPic) ? "" : vodPic.trim();
     }
 
+    /** 剥离爬虫附加的 @Referer= / @User-Agent= / @Cookie= / @Headers= 后缀，返回干净 URL */
+    public String getCleanPic() {
+        String url = getPic();
+        if (url.isEmpty() || !url.contains("@")) return url;
+        // 取第一个 @ 之前的部分即为干净 URL（爬虫在后缀中用 @ 分隔各 header）
+        return url.split("@")[0];
+    }
+
     /** 若原始 URL 含 @Referer=…，返回本地代理地址；否则返回 getPic() 的干净 URL */
     public String getPicProxyUrl(int proxyPort) {
         return com.fongmi.vod.utils.ImageProxy.get().rewrite(vodPic);

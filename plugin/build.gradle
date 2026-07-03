@@ -136,6 +136,7 @@ tasks.register('fatAar') {
                 'com.google.errorprone',    // error_prone_annotations
                 'com.google.j2objc',        // j2objc-annotations
                 'org.jspecify',             // jspecify
+                'net.lingala',             // zip4j（zip 解压，catvod 初始化需要）
         ] as Set
         // uni 云打包宿主基座(lib.5plus.base + uniapp-v8)已自带的 artifact，必须排除，否则
         // checkReleaseDuplicateClasses 失败。这些库运行期由宿主提供，fat aar 不打。

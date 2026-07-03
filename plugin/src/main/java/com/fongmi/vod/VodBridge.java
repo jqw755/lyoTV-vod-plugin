@@ -55,7 +55,6 @@ public class VodBridge {
     public static void init(JsonObject args, UniJSCallback cb) {
         invoke(() -> {
             String url = Json.safeString(args, "url");
-            android.util.Log.d("VodPlugin", "VodBridge.init url=" + url);
             if (TextUtils.isEmpty(url)) {
                 cb.invoke(error(-1, "need url"));
                 return;
@@ -64,15 +63,12 @@ public class VodBridge {
             VodConfig.load(config, new Callback() {
                 @Override
                 public void start() {
-                    android.util.Log.d("VodPlugin", "VodConfig.load start url=" + url);
                 }
 
                 @Override
                 public void success() {
-                    int sites = VodConfig.get().getSites().size();
-                    android.util.Log.d("VodPlugin", "VodConfig.load success sites=" + sites);
                     JSONObject data = new JSONObject();
-                    data.put("sites", sites);
+                    data.put("sites", VodConfig.get().getSites().size());
                     cb.invoke(ok(data));
                 }
 
@@ -94,15 +90,6 @@ public class VodBridge {
                 return;
             }
             Result result = SiteApi.homeContent(site);
-            // 诊断：输出前 3 条数据的 pic 值
-            List<Vod> list = result.getList();
-            for (int i = 0; i < Math.min(3, list.size()); i++) {
-                Vod v = list.get(i);
-                android.util.Log.d("VodPlugin", "home item[" + i + "] id=" + v.getId() + " name=" + v.getName() + " pic=[" + v.getPic() + "]");
-            }
-            if (list.isEmpty()) {
-                android.util.Log.w("VodPlugin", "home 结果列表为空");
-            }
             cb.invoke(ok(result.toString()));
         }, cb);
     }
@@ -146,7 +133,6 @@ public class VodBridge {
             boolean quick = bool(args, "quick", false);
             // 对标 lyoTV VodBrowse.search()：largeExecutor 并行搜全部 searchable 站点
             List<Site> allSites = VodConfig.get().getSites().stream().filter(s -> s.getSearchable() != 0).toList();
-            android.util.Log.d("VodPlugin", "search: keyword=" + keyword + ", sites=" + allSites.size());
             // 最多 10 线程并行，每个站 3 秒超时，总时限 8 秒
             ExecutorService pool = Executors.newFixedThreadPool(Math.min(allSites.size(), 10));
             List<Future<Result>> futures = new ArrayList<>();
@@ -160,11 +146,8 @@ public class VodBridge {
                 try {
                     long remaining = Math.max(500, deadline - System.currentTimeMillis());
                     Result result = futures.get(i).get(Math.min(remaining, 3000), TimeUnit.MILLISECONDS);
-                    List<Vod> siteList = result.getList();
-                    android.util.Log.d("VodPlugin", "search site=" + allSites.get(i).getName() + " result=" + siteList.size());
-                    allResults.addAll(siteList);
+                    allResults.addAll(result.getList());
                 } catch (TimeoutException e) {
-                    android.util.Log.w("VodPlugin", "search timeout for site " + allSites.get(i).getName());
                 } catch (Exception e) {
                     android.util.Log.e("VodPlugin", "search error for site " + allSites.get(i).getName() + ": " + e.getMessage());
                 }
@@ -180,9 +163,7 @@ public class VodBridge {
                 if (!aMatch && bMatch) return 1;
                 return 0;
             });
-            // 取前 50 条
             if (allResults.size() > 50) allResults = allResults.subList(0, 50);
-            android.util.Log.d("VodPlugin", "search total=" + allResults.size());
             cb.invoke(ok(Result.list(allResults).toString()));
         }, cb);
     }
@@ -198,7 +179,6 @@ public class VodBridge {
             String keyword = Json.safeString(args, "keyword");
             String siteKey = Json.safeString(args, "siteKey");
             Site site = VodConfig.get().getSite(siteKey);
-            android.util.Log.d("VodPlugin", "searchSite: keyword=" + keyword + " siteKey=" + siteKey + " found=" + !TextUtils.isEmpty(site.getKey()));
             if (TextUtils.isEmpty(site.getKey())) {
                 cb.invoke(ok(Result.list(new ArrayList<>()).toString()));
                 return;

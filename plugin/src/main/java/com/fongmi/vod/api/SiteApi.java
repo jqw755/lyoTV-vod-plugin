@@ -66,14 +66,6 @@ public class SiteApi {
             Result result = Result.fromJson(home);
             List<Vod> homeList = result.getList();
             List<Vod> videoList = Result.fromJson(video).getList();
-            // 诊断日志
-            android.util.Log.d("VodPlugin", "homeContent: homeList=" + homeList.size() + " videoList=" + videoList.size());
-            if (!homeList.isEmpty()) {
-                android.util.Log.d("VodPlugin", "home first pic=[" + homeList.get(0).getPic() + "]");
-            }
-            if (!videoList.isEmpty()) {
-                android.util.Log.d("VodPlugin", "video first pic=[" + videoList.get(0).getPic() + "]");
-            }
             // 保留 home 原始 list（含完整 vod_pic），video 仅当 home 为空时兜底
             if (homeList.isEmpty() && !videoList.isEmpty()) {
                 result.setList(videoList);

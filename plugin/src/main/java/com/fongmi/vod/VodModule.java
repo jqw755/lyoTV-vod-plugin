@@ -27,12 +27,10 @@ public class VodModule extends UniModule {
             } else if (mUniSDKInstance != null && mUniSDKInstance.getContext() != null) {
                 ctx = mUniSDKInstance.getContext();
             }
-            android.util.Log.d("VodPlugin", "ensureInit: ctx=" + ctx + " mWXSDKInstance=" + mWXSDKInstance + " mUniSDKInstance=" + mUniSDKInstance);
             if (ctx != null) {
                 ctx = ctx.getApplicationContext();
                 App.init(ctx);
                 com.github.catvod.Init.set(ctx);
-                android.util.Log.d("VodPlugin", "ensureInit 完成, appCtx=" + ctx);
             } else {
                 android.util.Log.e("VodPlugin", "ensureInit 失败: 无法获取 Context，App 上下文未注入");
             }
