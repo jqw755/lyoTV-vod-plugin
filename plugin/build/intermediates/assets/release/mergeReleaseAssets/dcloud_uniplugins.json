@@ -7,6 +7,11 @@
           "type": "module",
           "name": "Fongmi-VodPlugin",
           "class": "com.fongmi.vod.VodModule"
+        },
+        {
+          "type": "module",
+          "name": "Fongmi-LivePlugin",
+          "class": "com.fongmi.vod.LiveModule"
         }
       ]
     }
