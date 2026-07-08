@@ -1,17 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:ns1="urn:oasis:names:tc:xliff:document:1.2">
-    <string-array name="doh_name">
-        <item>系統</item>
-        <item>騰訊</item>
-        <item>阿里</item>
-        <item>360</item>
-    </string-array>
-    <string-array name="doh_url">
-        <item/>
-        <item>https://doh.pub/dns-query</item>
-        <item>https://dns.alidns.com/dns-query</item>
-        <item>https://doh.360.cn/dns-query</item>
-    </string-array>
     <string msgid="7903180715631665059" name="abc_action_bar_home_description">"瀏覽首頁"</string>
     <string msgid="6794660482873516081" name="abc_action_bar_up_description">"向上瀏覽"</string>
     <string msgid="1155814932213556626" name="abc_action_menu_overflow_description">"更多選項"</string>

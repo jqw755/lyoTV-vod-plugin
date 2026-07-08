@@ -44,11 +44,15 @@ public class LiveConfig {
     /** 初始化：拉取订阅JSON → 解析lives → LiveParser解析频道 */
     public synchronized void init(String url) throws Exception {
         clear();  // 清空旧数据，防止订阅切换后残留
-        String json = url.startsWith("http") ? com.github.catvod.net.OkHttp.string(url) : url;
+        android.util.Log.i("LivePlugin", "LiveConfig.init url=" + url);
+        // 与 VodConfig 对齐：用 Decoder.getJson 处理加密/编码内容
+        String json = com.fongmi.vod.api.Decoder.getJson(com.fongmi.vod.utils.UrlUtil.convert(url), "LiveConfig");
+        android.util.Log.i("LivePlugin", "LiveConfig.init fetched, len=" + (json == null ? 0 : json.length()) + " isObj=" + Json.isObj(json));
         if (Json.isObj(json)) {
             JSONObject obj = new JSONObject(json);
             parseHeaders(obj);
             parseLives(obj);
+            android.util.Log.i("LivePlugin", "LiveConfig.init done, lives=" + lives.size() + " groups=" + getHome().getGroups().size());
         } else {
             // 纯文本 M3U/TXT
             Live live = new Live(url, url);
@@ -56,6 +60,7 @@ public class LiveConfig {
             lives.add(live);
             LiveParser.text(live, json);
             setHome(live);
+            android.util.Log.i("LivePlugin", "LiveConfig.init text-mode done, groups=" + getHome().getGroups().size());
         }
     }
 
@@ -72,9 +77,14 @@ public class LiveConfig {
     private void parseLives(JSONObject obj) throws Exception {
         JSONArray livesArr = obj.optJSONArray("lives");
         if (livesArr == null || livesArr.length() == 0) {
+            StringBuilder ks = new StringBuilder();
+            java.util.Iterator<String> it = obj.keys();
+            while (it.hasNext()) { if (ks.length() > 0) ks.append(","); ks.append(it.next()); }
+            android.util.Log.w("LivePlugin", "parseLives: 订阅JSON无 lives 字段或为空, keys=[" + ks + "]");
             home = new Live();
             return;
         }
+        android.util.Log.i("LivePlugin", "parseLives: lives 数量=" + livesArr.length());
         lives = new ArrayList<>();
         for (int i = 0; i < livesArr.length(); i++) {
             JSONObject l = livesArr.getJSONObject(i);

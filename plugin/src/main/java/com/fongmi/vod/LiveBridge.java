@@ -31,12 +31,18 @@ public class LiveBridge {
         try {
             String url = args != null ? args.getString("url") : "";
             if (TextUtils.isEmpty(url)) {
+                android.util.Log.w("LivePlugin", "liveInit: url 为空");
                 cb.invoke(error(-1, "need url"));
                 return;
             }
+            android.util.Log.i("LivePlugin", "liveInit start, url=" + url);
             LiveConfig.get().init(url);
+            int groupCount = LiveConfig.get().getHome().getGroups().size();
+            int liveCount = LiveConfig.get().getLives().size();
+            android.util.Log.i("LivePlugin", "liveInit done, lives=" + liveCount + " groups=" + groupCount);
             JSONObject data = new JSONObject();
-            data.put("groups", LiveConfig.get().getHome().getGroups().size());
+            data.put("groups", groupCount);
+            data.put("lives", liveCount);
             cb.invoke(ok(data));
         } catch (Throwable e) {
             android.util.Log.e("LivePlugin", "liveInit error", e);
@@ -50,6 +56,7 @@ public class LiveBridge {
         try {
             Live home = LiveConfig.get().getHome();
             List<Group> groups = home.getGroups();
+            android.util.Log.i("LivePlugin", "liveGetGroups: groups=" + groups.size() + " lives=" + LiveConfig.get().getLives().size());
             JSONArray arr = new JSONArray();
             for (Group g : groups) {
                 if (g.getName().isEmpty()) continue;

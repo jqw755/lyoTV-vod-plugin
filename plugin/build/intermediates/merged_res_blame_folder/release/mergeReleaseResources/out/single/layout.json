@@ -8,12 +8,12 @@
         "source": "D:\\MyConfiguration\\qiwei.jing\\.gradle\\daemon\\9.5.1\\com.fongmi.vod.plugin-preference-1.2.1-10:\\layout\\preference_widget_seekbar.xml"
     },
     {
-        "merged": "D:\\MyConfiguration\\qiwei.jing\\.gradle\\daemon\\9.5.1\\com.fongmi.vod.plugin-release-25:\\layout\\preference_list_fragment.xml",
-        "source": "D:\\MyConfiguration\\qiwei.jing\\.gradle\\daemon\\9.5.1\\com.fongmi.vod.plugin-preference-1.2.1-10:\\layout\\preference_list_fragment.xml"
-    },
-    {
         "merged": "D:\\MyConfiguration\\qiwei.jing\\.gradle\\daemon\\9.5.1\\com.fongmi.vod.plugin-release-25:\\layout\\abc_action_menu_layout.xml",
         "source": "D:\\MyConfiguration\\qiwei.jing\\.gradle\\daemon\\9.5.1\\com.fongmi.vod.plugin-appcompat-1.1.0-1:\\layout\\abc_action_menu_layout.xml"
+    },
+    {
+        "merged": "D:\\MyConfiguration\\qiwei.jing\\.gradle\\daemon\\9.5.1\\com.fongmi.vod.plugin-release-25:\\layout\\preference_list_fragment.xml",
+        "source": "D:\\MyConfiguration\\qiwei.jing\\.gradle\\daemon\\9.5.1\\com.fongmi.vod.plugin-preference-1.2.1-10:\\layout\\preference_list_fragment.xml"
     },
     {
         "merged": "D:\\MyConfiguration\\qiwei.jing\\.gradle\\daemon\\9.5.1\\com.fongmi.vod.plugin-release-25:\\layout\\abc_search_dropdown_item_icons_2line.xml",
@@ -72,12 +72,12 @@
         "source": "D:\\MyConfiguration\\qiwei.jing\\.gradle\\daemon\\9.5.1\\com.fongmi.vod.plugin-appcompat-1.1.0-1:\\layout\\abc_activity_chooser_view.xml"
     },
     {
-        "merged": "D:\\MyConfiguration\\qiwei.jing\\.gradle\\daemon\\9.5.1\\com.fongmi.vod.plugin-release-25:\\layout\\preference_dropdown_material.xml",
-        "source": "D:\\MyConfiguration\\qiwei.jing\\.gradle\\daemon\\9.5.1\\com.fongmi.vod.plugin-preference-1.2.1-10:\\layout\\preference_dropdown_material.xml"
-    },
-    {
         "merged": "D:\\MyConfiguration\\qiwei.jing\\.gradle\\daemon\\9.5.1\\com.fongmi.vod.plugin-release-25:\\layout\\abc_action_bar_up_container.xml",
         "source": "D:\\MyConfiguration\\qiwei.jing\\.gradle\\daemon\\9.5.1\\com.fongmi.vod.plugin-appcompat-1.1.0-1:\\layout\\abc_action_bar_up_container.xml"
+    },
+    {
+        "merged": "D:\\MyConfiguration\\qiwei.jing\\.gradle\\daemon\\9.5.1\\com.fongmi.vod.plugin-release-25:\\layout\\preference_dropdown_material.xml",
+        "source": "D:\\MyConfiguration\\qiwei.jing\\.gradle\\daemon\\9.5.1\\com.fongmi.vod.plugin-preference-1.2.1-10:\\layout\\preference_dropdown_material.xml"
     },
     {
         "merged": "D:\\MyConfiguration\\qiwei.jing\\.gradle\\daemon\\9.5.1\\com.fongmi.vod.plugin-release-25:\\layout\\preference_dropdown.xml",

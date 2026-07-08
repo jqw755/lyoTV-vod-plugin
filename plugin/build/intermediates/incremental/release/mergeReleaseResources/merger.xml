@@ -3151,26 +3151,6 @@
         <item>https://doh.pub/dns-query</item>
         <item>https://dns.alidns.com/dns-query</item>
         <item>https://doh.360.cn/dns-query</item>
-    </string-array></file><file path="E:\jqw\programs\lyoTV-vod-plugin\catvod\build\intermediates\packaged_res\release\packageReleaseResources\values-zh-rCN\values-zh-rCN.xml" qualifiers="zh-rCN"><string-array name="doh_name">
-        <item>系统</item>
-        <item>腾讯</item>
-        <item>阿里</item>
-        <item>360</item>
-    </string-array><string-array name="doh_url">
-        <item/>
-        <item>https://doh.pub/dns-query</item>
-        <item>https://dns.alidns.com/dns-query</item>
-        <item>https://doh.360.cn/dns-query</item>
-    </string-array></file><file path="E:\jqw\programs\lyoTV-vod-plugin\catvod\build\intermediates\packaged_res\release\packageReleaseResources\values-zh-rTW\values-zh-rTW.xml" qualifiers="zh-rTW"><string-array name="doh_name">
-        <item>系統</item>
-        <item>騰訊</item>
-        <item>阿里</item>
-        <item>360</item>
-    </string-array><string-array name="doh_url">
-        <item/>
-        <item>https://doh.pub/dns-query</item>
-        <item>https://dns.alidns.com/dns-query</item>
-        <item>https://doh.360.cn/dns-query</item>
     </string-array></file></source></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config=":quickjs$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="E:\jqw\programs\lyoTV-vod-plugin\quickjs\build\intermediates\packaged_res\release\packageReleaseResources"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config=":quickjs" from-dependency="true" generated-set=":quickjs$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~:!&lt;dir>navigation"><source path="E:\jqw\programs\lyoTV-vod-plugin\quickjs\build\intermediates\packaged_res\release\packageReleaseResources"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="main$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="E:\jqw\programs\lyoTV-vod-plugin\plugin\src\main\res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="main" generated-set="main$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~:!&lt;dir>navigation"><source path="E:\jqw\programs\lyoTV-vod-plugin\plugin\src\main\res"><file path="E:\jqw\programs\lyoTV-vod-plugin\plugin\src\main\res\values\strings.xml" qualifiers=""><string name="parse_god">Super</string><string name="push">Push</string><string name="push_image" translatable="false"/><string name="error_config_get">Configuration get failed</string><string name="copied">Copied</string></file><file name="network_security_config" path="E:\jqw\programs\lyoTV-vod-plugin\plugin\src\main\res\xml\network_security_config.xml" qualifiers="" type="xml"/></source></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="release$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="E:\jqw\programs\lyoTV-vod-plugin\plugin\src\release\res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="release" generated-set="release$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~:!&lt;dir>navigation"><source path="E:\jqw\programs\lyoTV-vod-plugin\plugin\src\release\res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="generated$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"/><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="generated" generated-set="generated$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~:!&lt;dir>navigation"/><mergedItems><configuration qualifiers=""><declare-styleable name="AlertDialog">
         <attr name="android:layout"/>
         <attr format="reference" name="buttonPanelSideLayout"/>

@@ -39,11 +39,14 @@ public class LiveParser {
     public static void start(Live live) throws Exception {
         if (!live.getGroups().isEmpty()) return;
         String text = getText(live);
-        if (text.startsWith("[")) {
+        android.util.Log.i("LivePlugin", "LiveParser.start url=" + live.getUrl() + " textLen=" + text.length() + " head=" + (text.length() > 80 ? text.substring(0, 80) : text).replace("\n", "\\n"));
+        if (Json.isArray(text)) {
             live.getGroups().addAll(Group.arrayFrom(text));
             apply(live);
+            android.util.Log.i("LivePlugin", "LiveParser.start: JSON数组解析, groups=" + live.getGroups().size());
         } else {
             text(live, text);
+            android.util.Log.i("LivePlugin", "LiveParser.start: M3U/TXT解析, groups=" + live.getGroups().size());
         }
     }
 
