@@ -49,7 +49,15 @@
       "Bash(echo 'cd /d E:\\\\jqw\\\\programs\\\\lyoTVMobile')",
       "Bash(echo 'call make.bat > E:\\\\jqw\\\\programs\\\\lyoTVMobile\\\\_log.txt 2>&1')",
       "Bash(echo 'echo EXIT_CODE=%errorlevel% >> E:\\\\jqw\\\\programs\\\\lyoTVMobile\\\\_log.txt')",
-      "Bash(cmd /c \"C:\\\\tmp\\\\wrapper.bat\")"
+      "Bash(cmd /c \"C:\\\\tmp\\\\wrapper.bat\")",
+      "Bash(python3 -c ' *)",
+      "Bash(python3 -c \"print\\('hello'\\)\")",
+      "Bash(python -c \"print\\('hello'\\)\")",
+      "Bash(python -c ' *)",
+      "Bash(\"D:\\\\MyConfiguration\\\\qiwei.jing\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" logcat *)",
+      "Bash(D:\\\\MyConfiguration\\\\qiwei.jing\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe devices *)",
+      "WebFetch(domain:www.xn--sss604efuw.cc)",
+      "Bash(D:\\\\MyConfiguration\\\\qiwei.jing\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe connect *)"
     ]
   }
 }

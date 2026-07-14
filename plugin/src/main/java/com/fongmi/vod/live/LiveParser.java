@@ -37,17 +37,27 @@ public class LiveParser {
     private static final Pattern NAME = Pattern.compile(".*,(.+?)$");
 
     public static void start(Live live) throws Exception {
-        if (!live.getGroups().isEmpty()) return;
+        // 对齐 fongmi 原版：已从订阅 JSON 内嵌 groups 元数据解析出的分组直接保留，不再同步拉 M3U/TXT。
+        // 这是卫视页秒切的关键——订阅 JSON 已含分组时跳过拉远端 M3U，避免冷启动 10-30s 阻塞。
+        if (!live.getGroups().isEmpty()) {
+            android.util.Log.i("LivePlugin", "LiveParser.start 跳过拉取: 已有 groups=" + live.getGroups().size() + " 不重复拉 M3U/TXT");
+            return;
+        }
         String text = getText(live);
-        android.util.Log.i("LivePlugin", "LiveParser.start url=" + live.getUrl() + " textLen=" + text.length() + " head=" + (text.length() > 80 ? text.substring(0, 80) : text).replace("\n", "\\n"));
+        String fmt = Json.isArray(text) ? "JSON数组" : (M3U.matcher(text).find() ? "M3U" : "TXT");
+        android.util.Log.i("LivePlugin", "LiveParser.start url=" + live.getUrl() + " textLen=" + text.length() + " fmt=" + fmt + " existingGroups=" + live.getGroups().size() + " head=" + (text.length() > 100 ? text.substring(0, 100) : text).replace("\n", "\\n"));
         if (Json.isArray(text)) {
             live.getGroups().addAll(Group.arrayFrom(text));
             apply(live);
-            android.util.Log.i("LivePlugin", "LiveParser.start: JSON数组解析, groups=" + live.getGroups().size());
         } else {
             text(live, text);
-            android.util.Log.i("LivePlugin", "LiveParser.start: M3U/TXT解析, groups=" + live.getGroups().size());
         }
+        int totalCh = 0, withUrl = 0;
+        for (Group g : live.getGroups()) {
+            totalCh += g.getChannel().size();
+            for (Channel ch : g.getChannel()) if (!ch.getUrls().isEmpty()) withUrl++;
+        }
+        android.util.Log.i("LivePlugin", "LiveParser.start done: fmt=" + fmt + " groups=" + live.getGroups().size() + " channels=" + totalCh + " withUrl=" + withUrl);
     }
 
     private static String getText(Live live) throws Exception {
@@ -55,7 +65,6 @@ public class LiveParser {
     }
 
     public static void text(Live live, String text) {
-        if (!live.getGroups().isEmpty()) return;
         if (M3U.matcher(text).find()) m3u(live, text);
         else txt(live, text);
         apply(live);
@@ -88,13 +97,14 @@ public class LiveParser {
                 }
             } else if (line.startsWith("#EXTINF:")) {
                 Group group = live.find(new Group(extract(line, GROUP)));
-                channel = new Channel(extract(line, NAME));
+                // 关键：用 group.find() 确保 channel 是组内实际对象而非副本，
+                // 后续 URL 行通过这个引用直接 add 到组内 channel 的 urls
+                channel = group.find(Channel.create(extract(line, NAME)));
                 channel.setUa(extract(line, HTTP_USER_AGENT));
                 channel.setTvgName(extract(line, TVG_NAME));
                 channel.setNumber(extract(line, TVG_CHNO));
                 channel.setLogo(extract(line, TVG_LOGO));
                 channel.setTvgId(extract(line, TVG_ID));
-                group.add(channel);
             } else if (!line.startsWith("#") && line.contains("://")) {
                 String[] parts = line.split("\\|", 2);
                 if (parts.length > 1) setting.headers(parts[1]);

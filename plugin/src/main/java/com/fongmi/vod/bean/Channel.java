@@ -41,6 +41,14 @@ public class Channel {
         this.name = name;
     }
 
+    public static Channel create(int number) {
+        return new Channel().setNumber2(number);
+    }
+
+    public static Channel create(String name) {
+        return new Channel(name);
+    }
+
     public static Channel create(Channel channel) {
         Channel c = new Channel(channel.getName());
         c.urls.addAll(channel.getUrls());
@@ -65,6 +73,7 @@ public class Channel {
     public String getNumber() { return TextUtils.isEmpty(number) ? "" : number; }
     public void setNumber(String number) { this.number = number; }
     public void setNumber(int number) { this.number = String.valueOf(number); }
+    private Channel setNumber2(int number) { this.number = String.valueOf(number); return this; }
 
     public String getLogo() { return TextUtils.isEmpty(logo) ? "" : logo; }
     public void setLogo(String logo) { this.logo = logo; }
@@ -152,10 +161,10 @@ public class Channel {
         result.setUrl(getCurrent());
         Map<String, String> h = getHeaders();
         if (!h.isEmpty()) result.setHeader(h);
-        if (!ua.isEmpty()) result.getHeader().put("User-Agent", ua);
-        if (!referer.isEmpty()) result.getHeader().put("Referer", referer);
-        if (!origin.isEmpty()) result.getHeader().put("Origin", origin);
-        if (!format.isEmpty()) result.setFormat(format);
+        if (!getUa().isEmpty()) result.getHeader().put("User-Agent", getUa());
+        if (!getReferer().isEmpty()) result.getHeader().put("Referer", getReferer());
+        if (!getOrigin().isEmpty()) result.getHeader().put("Origin", getOrigin());
+        if (!getFormat().isEmpty()) result.setFormat(getFormat());
         return result;
     }
 
@@ -172,6 +181,20 @@ public class Channel {
     public boolean equals(Object obj) {
         if (this == obj) return true;
         if (!(obj instanceof Channel)) return false;
-        return getName().equals(((Channel) obj).getName());
+        Channel it = (Channel) obj;
+        String name1 = getName(), name2 = it.getName();
+        String number1 = getNumber(), number2 = it.getNumber();
+        if (!name1.isEmpty() && !name2.isEmpty()) return name1.equals(name2);
+        if (!number1.isEmpty() && !number2.isEmpty()) return number1.equals(number2);
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        String n = getName();
+        String num = getNumber();
+        if (!n.isEmpty()) return n.hashCode();
+        if (!num.isEmpty()) return num.hashCode();
+        return 0;
     }
 }

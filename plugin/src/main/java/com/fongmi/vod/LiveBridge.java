@@ -117,13 +117,36 @@ public class LiveBridge {
     public static void getUrl(JSONObject args, UniJSCallback cb) {
         if (cb == null) return;
         try {
-            String channelName = args != null ? args.getString("channel") : "";
-            String groupName = args != null ? args.getString("group") : "";
-            int line = args != null ? args.getIntValue("line") : -1;
+            // fastjson getString/getIntValue 对缺失 key 返回 null，每步必须判空
+            String channelName = "";
+            String groupName = "";
+            int line = 0;
+            if (args != null) {
+                String ch = args.getString("channel");
+                if (ch != null) channelName = ch;
+                if (channelName.isEmpty()) {
+                    Object chId = args.get("channelId");
+                    if (chId instanceof Number) channelName = String.valueOf(chId);
+                    else if (chId instanceof String) channelName = (String) chId;
+                }
+                String g = args.getString("group");
+                if (g != null) groupName = g;
+                Integer l = args.getInteger("line");
+                if (l != null) line = l;
+            }
+            android.util.Log.i("LivePlugin", "liveGetUrl channel=" + channelName + " group=" + groupName + " line=" + line);
 
             Live home = LiveConfig.get().getHome();
             Channel channel = findChannel(home, groupName, channelName);
             if (channel == null) {
+                // 诊断：打印所有分组和频道名
+                StringBuilder sb = new StringBuilder("available: ");
+                for (Group g : home.getGroups()) {
+                    for (Channel c : g.getChannel()) {
+                        if (sb.length() < 300) sb.append("[").append(g.getName()).append("]").append(c.getName()).append(" ");
+                    }
+                }
+                android.util.Log.w("LivePlugin", "channel not found: " + channelName + " in group=" + groupName + " " + sb);
                 cb.invoke(error(-1, "channel not found: " + channelName));
                 return;
             }
@@ -135,18 +158,25 @@ public class LiveBridge {
             Source.get().stop();
             Result result = LiveApi.getUrl(channel);
 
+            // 直接返回原始 url + header：前端 uni-app <video> 的 header 属性（App 3.1.19+）直接注入 Referer/UA，
+            // 比 LiveProxy 代理透传字节流更可靠（HLS 分片 .ts 透传 chunked 编码 <video> 可能无法识别 MIME）
+            String playUrl = result.getUrl().v();
+            android.util.Log.i("LivePlugin", "liveGetUrl url=" + playUrl);
+
             JSONObject obj = new JSONObject();
-            obj.put("url", result.getUrl().v());
+            obj.put("url", playUrl);
             obj.put("line", channel.getIndex());
-            // 请求头
+            // 请求头传给前端 <video :header="...">：补默认 UA 兜底（咪咕等服务器校验 UA）
             Map<String, String> headers = result.getHeader();
-            if (headers != null && !headers.isEmpty()) {
-                JSONObject headerObj = new JSONObject();
-                for (Map.Entry<String, String> entry : headers.entrySet()) {
-                    headerObj.put(entry.getKey(), entry.getValue());
-                }
-                obj.put("header", headerObj);
+            if (headers == null) headers = new java.util.HashMap<>();
+            if (!headers.containsKey("User-Agent") && !headers.containsKey("user-agent")) {
+                headers.put("User-Agent", "okhttp/4.12.0");
             }
+            JSONObject headerObj = new JSONObject();
+            for (Map.Entry<String, String> entry : headers.entrySet()) {
+                headerObj.put(entry.getKey(), entry.getValue());
+            }
+            obj.put("header", headerObj);
             cb.invoke(ok(obj));
         } catch (Throwable e) {
             android.util.Log.e("LivePlugin", "liveGetUrl error", e);
@@ -154,11 +184,25 @@ public class LiveBridge {
         }
     }
 
-    private static Channel findChannel(Live live, String groupName, String channelName) {
+    /**
+     * 多字段匹配查找频道，对齐原版 fongmi Channel.equals 的 name/number 双匹配逻辑。
+     * 前端传 displayName（即 getShow() = number + " " + name），也传 tvgId / number / name。
+     */
+    private static Channel findChannel(Live live, String groupName, String channelId) {
+        if (channelId == null || channelId.isEmpty()) return null;
         for (Group g : live.getGroups()) {
-            if (!g.getName().equals(groupName)) continue;
+            if (groupName != null && !groupName.isEmpty() && !g.getName().equals(groupName)) continue;
             for (Channel ch : g.getChannel()) {
-                if (ch.getName().equals(channelName)) return ch;
+                if (channelId.equals(ch.getName())) return ch;
+                if (channelId.equals(ch.getNumber())) return ch;
+                if (channelId.equals(ch.getTvgId())) return ch;
+                if (channelId.equals(ch.getTvgName())) return ch;
+                if (channelId.equals(ch.getShow())) return ch;
+                // 数字字符串兼容：前端可能传 "1" 而 number 是 "1" 或 "001"
+                try {
+                    int num = Integer.parseInt(channelId);
+                    if (ch.getNumber().equals(String.valueOf(num))) return ch;
+                } catch (NumberFormatException ignored) {}
             }
         }
         return null;

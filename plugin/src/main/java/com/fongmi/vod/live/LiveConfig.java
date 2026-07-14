@@ -1,5 +1,6 @@
 package com.fongmi.vod.live;
 
+import com.fongmi.vod.bean.Channel;
 import com.fongmi.vod.bean.Group;
 import com.fongmi.vod.bean.Live;
 import com.github.catvod.utils.Json;
@@ -43,8 +44,8 @@ public class LiveConfig {
 
     /** 初始化：拉取订阅JSON → 解析lives → LiveParser解析频道 */
     public synchronized void init(String url) throws Exception {
-        clear();  // 清空旧数据，防止订阅切换后残留
         android.util.Log.i("LivePlugin", "LiveConfig.init url=" + url);
+        clear();  // 清空旧数据，防止订阅切换后残留
         // 与 VodConfig 对齐：用 Decoder.getJson 处理加密/编码内容
         String json = com.fongmi.vod.api.Decoder.getJson(com.fongmi.vod.utils.UrlUtil.convert(url), "LiveConfig");
         android.util.Log.i("LivePlugin", "LiveConfig.init fetched, len=" + (json == null ? 0 : json.length()) + " isObj=" + Json.isObj(json));
@@ -98,11 +99,28 @@ public class LiveConfig {
             if (l.has("ua")) live.setUa(l.optString("ua"));
             if (l.has("referer")) live.setReferer(l.optString("referer"));
 
+            android.util.Log.i("LivePlugin", "parseLives[" + i + "] name=" + live.getName()
+                + " url=" + (live.getUrl().isEmpty() ? "(无)" : live.getUrl())
+                + " hasGroups=" + l.has("groups")
+                + " keys=" + l.keys().toString());
+
             if (l.has("groups")) {
+                android.util.Log.i("LivePlugin", "parseLives[" + i + "]: 内嵌JSON groups, name=" + live.getName());
                 JSONArray gArr = l.getJSONArray("groups");
                 live.setGroups(Group.arrayFrom(gArr.toString()));
-            } else if (!live.getUrl().isEmpty()) {
+                android.util.Log.i("LivePlugin", "parseLives[" + i + "]: JSON groups解析完成, groups=" + live.getGroups().size() + " 首个group频道数=" + (live.getGroups().isEmpty() ? 0 : live.getGroups().get(0).getChannel().size()));
+            }
+            // 对齐 fongmi 原版 LiveConfig.initLive：JSON 已含 groups 元数据时不再拉远端 M3U/TXT，
+            // 由 LiveParser.start 的判空短路兜底（已含 groups 直接 return）。
+            // 仅当 JSON 没给 groups 但给了 url 时，才同步拉 M3U/TXT 解析频道——这是 fongmi 的延迟解析策略。
+            if (live.getGroups().isEmpty() && !live.getUrl().isEmpty()) {
+                android.util.Log.i("LivePlugin", "parseLives[" + i + "]: JSON 无 groups 元数据，拉取M3U/TXT url=" + live.getUrl());
                 LiveParser.start(live);
+                android.util.Log.i("LivePlugin", "parseLives[" + i + "]: M3U/TXT解析完成, groups=" + live.getGroups().size());
+            } else if (!live.getGroups().isEmpty()) {
+                android.util.Log.i("LivePlugin", "parseLives[" + i + "]: 沿用 JSON 内嵌 groups，跳过拉取M3U/TXT");
+            } else {
+                android.util.Log.w("LivePlugin", "parseLives[" + i + "]: url为空且无groups元数据，无法解析");
             }
             lives.add(live);
         }
@@ -124,6 +142,10 @@ public class LiveConfig {
 
     public boolean isEmpty() {
         return getHome().isEmpty();
+    }
+
+    public boolean isLoaded() {
+        return !getLives().isEmpty() && !getHome().getGroups().isEmpty();
     }
 
     private static class Loader {

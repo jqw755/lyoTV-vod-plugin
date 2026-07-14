@@ -108,7 +108,7 @@ public class Group {
 
     public void add(Channel channel) {
         Channel exist = getChannel().stream()
-                .filter(c -> c.getName().equals(channel.getName()))
+                .filter(item -> item.equals(channel))
                 .findFirst().orElse(null);
         if (exist != null) {
             exist.getUrls().addAll(channel.getUrls());
@@ -117,11 +117,22 @@ public class Group {
         }
     }
 
+    public int find(int number) {
+        return getChannel().lastIndexOf(Channel.create(number));
+    }
+
     public int find(String name) {
-        for (int i = 0; i < getChannel().size(); i++) {
-            if (getChannel().get(i).getName().equals(name)) return i;
-        }
-        return -1;
+        return getChannel().lastIndexOf(Channel.create(name));
+    }
+
+    /** 查找或创建频道 — 返回组内实际对象，不创建副本，确保 URL 追加到正确对象 */
+    public Channel find(Channel channel) {
+        Channel exist = getChannel().stream()
+                .filter(item -> item.equals(channel))
+                .findFirst().orElse(null);
+        if (exist != null) return exist;
+        getChannel().add(channel);
+        return channel;
     }
 
     public Channel current() {

@@ -41,6 +41,8 @@ public class App {
         instance().context = context.getApplicationContext();
         // 启动本地图片代理（懒初始化，start() 幂等）
         ImageProxy.get().start();
+        // 启动本地直播流代理（解决 uni-app <video> 无法注入 Referer/UA 导致部分源 403）
+        com.fongmi.vod.utils.LiveProxy.get().start();
     }
 
     public static Gson gson() {
