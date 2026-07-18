@@ -110,21 +110,19 @@ public class LiveConfig {
                 live.setGroups(Group.arrayFrom(gArr.toString()));
                 android.util.Log.i("LivePlugin", "parseLives[" + i + "]: JSON groups解析完成, groups=" + live.getGroups().size() + " 首个group频道数=" + (live.getGroups().isEmpty() ? 0 : live.getGroups().get(0).getChannel().size()));
             }
-            // 对齐 fongmi 原版 LiveConfig.initLive：JSON 已含 groups 元数据时不再拉远端 M3U/TXT，
-            // 由 LiveParser.start 的判空短路兜底（已含 groups 直接 return）。
-            // 仅当 JSON 没给 groups 但给了 url 时，才同步拉 M3U/TXT 解析频道——这是 fongmi 的延迟解析策略。
-            if (live.getGroups().isEmpty() && !live.getUrl().isEmpty()) {
-                android.util.Log.i("LivePlugin", "parseLives[" + i + "]: JSON 无 groups 元数据，拉取M3U/TXT url=" + live.getUrl());
-                LiveParser.start(live);
-                android.util.Log.i("LivePlugin", "parseLives[" + i + "]: M3U/TXT解析完成, groups=" + live.getGroups().size());
-            } else if (!live.getGroups().isEmpty()) {
-                android.util.Log.i("LivePlugin", "parseLives[" + i + "]: 沿用 JSON 内嵌 groups，跳过拉取M3U/TXT");
-            } else {
-                android.util.Log.w("LivePlugin", "parseLives[" + i + "]: url为空且无groups元数据，无法解析");
-            }
+            // 对齐 fongmi LiveConfig.initLive：这里只建立全部直播源的元数据，
+            // 不在启动阶段串行下载每个源的 M3U/TXT。
             lives.add(live);
         }
-        if (!lives.isEmpty()) setHome(lives.get(0));
+        if (!lives.isEmpty()) {
+            setHome(lives.get(0));
+            // fongmi 进入 LiveActivity 时只解析当前 home；前端目前也只展示 home。
+            if (home.getGroups().isEmpty() && !home.getUrl().isEmpty()) {
+                android.util.Log.i("LivePlugin", "parseLives: 仅解析当前直播源 " + home.getName() + " url=" + home.getUrl());
+                LiveParser.start(home);
+                android.util.Log.i("LivePlugin", "parseLives: 当前直播源解析完成, groups=" + home.getGroups().size());
+            }
+        }
     }
 
     private void setHome(Live live) {

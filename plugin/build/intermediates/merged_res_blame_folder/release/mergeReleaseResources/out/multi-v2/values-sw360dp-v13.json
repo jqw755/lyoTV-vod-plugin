@@ -4,7 +4,7 @@
             "outputFile": "com.fongmi.vod.plugin-release-25:/values-sw360dp-v13/values-sw360dp-v13.xml",
             "map": [
                 {
-                    "source": "D:\\MyConfiguration\\qiwei.jing\\.gradle\\caches\\9.5.1\\transforms\\6fd17b34f300608505dc2ed3f6dfe2b0\\transformed\\preference-1.2.1\\res\\values-sw360dp-v13\\values-sw360dp-v13.xml",
+                    "source": "C:\\Users\\19480\\.gradle\\caches\\9.5.1\\transforms\\6fd17b34f300608505dc2ed3f6dfe2b0\\transformed\\preference-1.2.1\\res\\values-sw360dp-v13\\values-sw360dp-v13.xml",
                     "from": {
                         "startLines": "2",
                         "startColumns": "4",
@@ -19,7 +19,7 @@
             "outputFile": "com.fongmi.vod.plugin-mergeReleaseResources-23:/values-sw360dp-v13/values-sw360dp-v13.xml",
             "map": [
                 {
-                    "source": "D:\\MyConfiguration\\qiwei.jing\\.gradle\\caches\\9.5.1\\transforms\\6fd17b34f300608505dc2ed3f6dfe2b0\\transformed\\preference-1.2.1\\res\\values-sw360dp-v13\\values-sw360dp-v13.xml",
+                    "source": "C:\\Users\\19480\\.gradle\\caches\\9.5.1\\transforms\\6fd17b34f300608505dc2ed3f6dfe2b0\\transformed\\preference-1.2.1\\res\\values-sw360dp-v13\\values-sw360dp-v13.xml",
                     "from": {
                         "startLines": "2",
                         "startColumns": "4",
