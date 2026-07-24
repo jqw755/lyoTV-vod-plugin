@@ -1,7 +1,0 @@
-R_DEF: Internal format may change without notice
-local
-string copied
-string error_config_get
-string parse_god
-string push
-string push_image
