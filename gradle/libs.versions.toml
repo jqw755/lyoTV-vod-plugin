@@ -1,9 +1,13 @@
 [versions]
 agp = "9.2.1"
+kotlin = "2.2.0"
 python = "17.0.0"
 minSdk = "24"
 targetSdk = "35"
-compileSdk = "35"
+compileSdk = "36"
+
+# Media3 播放器
+media3 = "1.10.1"
 
 annotation = "1.10.0"
 appcompat = "1.7.1"
@@ -84,6 +88,12 @@ glide-compiler = { group = "com.github.bumptech.glide", name = "compiler", versi
 glide-okhttp3-integration = { group = "com.github.bumptech.glide", name = "okhttp3-integration", version.ref = "glide" }
 gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
 guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
+
+# Media3 播放器依赖
+media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "media3" }
+media3-exoplayer-hls = { group = "androidx.media3", name = "media3-exoplayer-hls", version.ref = "media3" }
+media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "media3" }
+media3-common = { group = "androidx.media3", name = "media3-common", version.ref = "media3" }
 jna = { group = "net.java.dev.jna", name = "jna", version.ref = "jna" }
 juniversalchardet = { group = "com.googlecode.juniversalchardet", name = "juniversalchardet", version.ref = "juniversalchardet" }
 rtmp-client = { group = "com.github.mcxinyu", name = "LibRtmp-Client-for-Android", version.ref = "rtmpClient" }
@@ -113,6 +123,7 @@ zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxingCo
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
 chaquo-python = { id = "com.chaquo.python", version.ref = "python" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 
 [bundles]
 glide = ["glide", "glide-annotations", "glide-avif-integration", "glide-okhttp3-integration"]

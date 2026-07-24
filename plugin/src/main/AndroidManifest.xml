@@ -1,2 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 允许明文 HTTP 请求（catvod 拉取订阅 JSON + HLS 直播源走 http） -->
+    <application
+        android:usesCleartextTraffic="true"
+        android:networkSecurityConfig="@xml/lyo_player_network_security_config" />
+</manifest>

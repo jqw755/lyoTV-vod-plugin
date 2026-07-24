@@ -131,21 +131,29 @@ public class VodBridge {
             String keyword = Json.safeString(args, "keyword");
             String page = str(args, "page", "1");
             boolean quick = bool(args, "quick", false);
-            // 对标 lyoTV VodBrowse.search()：largeExecutor 并行搜全部 searchable 站点
-            List<Site> allSites = VodConfig.get().getSites().stream().filter(s -> s.getSearchable() != 0).toList();
-            // 最多 10 线程并行，每个站 3 秒超时，总时限 8 秒
-            ExecutorService pool = Executors.newFixedThreadPool(Math.min(allSites.size(), 10));
+            // 对标 lyoTV SiteViewModel.SearchTask：quick=true 时仅搜 isQuickSearch() 的站点，
+            // 否则不支持的站点会返回空串拖慢整体；同时缩短 deadline 适配前端联想 5s 超时。
+            List<Site> allSites = VodConfig.get().getSites().stream()
+                .filter(s -> s.getSearchable() != 0)
+                .filter(s -> !quick || s.isQuickSearch())
+                .toList();
+            // quick 模式总时限 4s（前端 5s 超时留 1s 余量），普通模式 8s
+            long deadlineMs = quick ? 4000L : 8000L;
+            // quick 模式每站 1.5s 超时，普通模式 3s
+            long perSiteMs = quick ? 1500L : 3000L;
+            // 最多 10 线程并行
+            ExecutorService pool = Executors.newFixedThreadPool(Math.min(Math.max(allSites.size(), 1), 10));
             List<Future<Result>> futures = new ArrayList<>();
             for (Site site : allSites) {
                 futures.add(pool.submit(() -> SiteApi.searchContent(site, keyword, quick, page)));
             }
             // 按原版 collectResults 逻辑：逐个收结果，满 50 条或超时则停
             List<Vod> allResults = new ArrayList<>();
-            long deadline = System.currentTimeMillis() + 8000;
+            long deadline = System.currentTimeMillis() + deadlineMs;
             for (int i = 0; i < futures.size() && allResults.size() < 50; i++) {
                 try {
                     long remaining = Math.max(500, deadline - System.currentTimeMillis());
-                    Result result = futures.get(i).get(Math.min(remaining, 3000), TimeUnit.MILLISECONDS);
+                    Result result = futures.get(i).get(Math.min(remaining, perSiteMs), TimeUnit.MILLISECONDS);
                     allResults.addAll(result.getList());
                 } catch (TimeoutException e) {
                 } catch (Exception e) {

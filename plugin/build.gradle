@@ -41,6 +41,8 @@ dependencies {
     // releaseCompileClasspath，供 fatAar 的 ArtifactView 收集 classes 与 native .so
     api project(':catvod')
     api project(':quickjs')
+    // api 依赖 player 模块，使其 Media3 传递依赖进入 fatAar 的 classpath 收集
+    api project(':player')
     // 源解析链路必需：simple-xml（Result/Vod/Class 的 @Root/@Element XML 解析）
     implementation libs.simple.xml
     // gson / okhttp / guava 由 catvod 的 api 传递暴露，显式声明以防被裁剪
@@ -68,10 +70,11 @@ tasks.register('fatAar') {
     group = 'Build'
     description = '合并 plugin/catvod/quickjs 及全部外部依赖、native .so 到单个自包含 AAR'
 
-    // 先编译三个模块的 release AAR
+    // 先编译四个模块的 release AAR
     dependsOn ':plugin:assembleRelease'
     dependsOn ':catvod:assembleRelease'
     dependsOn ':quickjs:assembleRelease'
+    dependsOn ':player:assembleRelease'
 
     // doLast 里取 runtimeClasspath（配置阶段该 configuration 尚未就绪）
     doLast {
@@ -79,17 +82,18 @@ tasks.register('fatAar') {
         def outDir = new File(buildDir, "outputs/aar")
         outDir.mkdirs()
 
-        // 三个模块 AAR
+        // 四个模块 AAR
         def pluginAar  = new File(outDir, "plugin-release.aar")
         def catvodAar  = new File(rootProject.findProject(':catvod').layout.buildDirectory.get().asFile, "outputs/aar/catvod-release.aar")
         def quickjsAar = new File(rootProject.findProject(':quickjs').layout.buildDirectory.get().asFile, "outputs/aar/quickjs-release.aar")
+        def playerAar  = new File(rootProject.findProject(':player').layout.buildDirectory.get().asFile, "outputs/aar/player-release.aar")
 
         def workDir  = new File(buildDir, "tmp/fat-aar")
         def mergeDir = new File(workDir, "merge")
         delete workDir
         mergeDir.mkdirs()
 
-        def moduleAars = [pluginAar, catvodAar, quickjsAar]
+        def moduleAars = [pluginAar, catvodAar, quickjsAar, playerAar]
 
         // 提取所有模块 AAR
         moduleAars.each { aar ->

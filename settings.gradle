@@ -28,4 +28,5 @@ dependencyResolutionManagement {
 include ':plugin'
 include ':catvod'
 include ':quickjs'
+include ':player'
 rootProject.name = "VodPlugin"

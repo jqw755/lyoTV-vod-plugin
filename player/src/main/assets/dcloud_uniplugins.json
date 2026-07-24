@@ -1,0 +1,14 @@
+{
+  "nativePlugins": [
+    {
+      "hooksClass": "",
+      "plugins": [
+        {
+          "type": "component",
+          "name": "lyo-player",
+          "class": "com.lyo.media3.player.LyoPlayerComponent"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+plugins {
+    alias libs.plugins.android.library
+    // AGP 9.x 内置 Kotlin 支持：自动识别 .kt 文件，不额外 apply kotlin-android
+}
+
+android {
+    namespace = 'com.lyo.media3.player'
+
+    compileSdk libs.versions.compileSdk.get().toInteger()
+
+    defaultConfig {
+        minSdk libs.versions.minSdk.get().toInteger()
+        targetSdk libs.versions.targetSdk.get().toInteger()
+        consumerProguardFiles 'consumer-rules.pro'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled = false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
+    }
+
+    configurations.configureEach {
+        exclude group: 'com.android.support'
+    }
+}
+
+dependencies {
+    // Media3 播放内核 + HLS + UI
+    implementation libs.media3.exoplayer
+    implementation libs.media3.exoplayer.hls
+    implementation libs.media3.ui
+    implementation libs.media3.common
+
+    // uni-app 原生插件 SDK 仅编译期引用（宿主已自带）
+    compileOnly fileTree(dir: "libs", include: ["*.aar", "*.jar"])
+    compileOnly 'com.alibaba:fastjson:1.2.83'
+}
