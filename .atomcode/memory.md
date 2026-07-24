@@ -1,0 +1,3 @@
+- lyoTVMobile 构建链路：make.bat 调用 D:\jqw\programs\gradle-9.5.1\bin\gradle.bat（standalone，非 wrapper；wrapper 的 distributionUrl 指向 E 盘不存在路径），先 :plugin:fatAar 产出 fat AAR，拷到 HBuilder-Integrate-AS/simpleDemo/libs，再 :simpleDemo:assembleDebug 出 APK。
+- simpleDemo (HBuilder-Integrate-AS/simpleDemo) 的 build.gradle 用 fileTree 依赖 libs 下所有 aar，必须包含 HBuilder 基座库 lib.5plus.base-release.aar / uniapp-v8-release.aar / breakpad-build-release.aar（从 HBuilder-HelloUniApp/app/libs 复制），它们提供 ime_background 颜色、TranslucentTheme/DCloudTheme 主题。缺失会致 :simpleDemo:processDebugResources FAILED。
+- plugin/build.gradle 的 fatAar 任务：res 合并时只对 catvod 排除 values.xml（doh_name/doh_url 重复键），其他模块（player 等）的 values.xml 必须保留；R.txt 合并用 LinkedHashSet 去重（player 的传递符号会同时出现在 player 和 plugin 的 R.txt 中）。

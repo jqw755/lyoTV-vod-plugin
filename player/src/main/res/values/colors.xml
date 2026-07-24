@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- simpleDemo 的 DCloudActivityTheme 引用 @color/ime_background，但 simpleDemo
+         未依赖 HBuilder 基座库 lib.5plus.base-release.aar（该颜色在那里定义为 #cccccc），
+         需由 fat AAR 提供。值与基座保持一致，避免与宿主冲突。 -->
+    <color name="ime_background">#cccccc</color>
+</resources>

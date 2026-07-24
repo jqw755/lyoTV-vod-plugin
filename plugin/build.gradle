@@ -215,12 +215,12 @@ tasks.register('fatAar') {
         }
 
         // —— 合并 R.txt（跳过 doh_name/doh_url，值已从 values.xml 排除，但 R.txt 残留仍会触发 aapt2 Duplicate key）——
-        def rTxtLines = []
+        def rTxtSeen = new LinkedHashSet<String>()
         moduleAars.each { aar ->
             def rTxt = new File(new File(workDir, aar.name.replace('.aar', '')), "R.txt")
-            if (rTxt.exists()) rTxtLines.addAll(rTxt.readLines('UTF-8').findAll { !it.contains('doh_') })
+            if (rTxt.exists()) rTxt.readLines('UTF-8').findAll { !it.contains('doh_') }.each { rTxtSeen.add(it) }
         }
-        new File(mergeDir, "R.txt").withWriter('UTF-8') { w -> rTxtLines.each { w.writeLine(it) } }
+        new File(mergeDir, "R.txt").withWriter('UTF-8') { w -> rTxtSeen.each { w.writeLine(it) } }
 
         // —— 合并 res/（跳过 catvod 的 values.xml：含 doh_name/doh_url 数组，会与宿主或自身重复致 aapt2 Duplicate key；
         // Doh.get() 已容错资源缺失，DoH 仅 DNS 优化不影响订阅加载）——
@@ -229,9 +229,14 @@ tasks.register('fatAar') {
             if (resDir.exists()) copy {
                 from resDir
                 into new File(mergeDir, "res")
-                exclude "**/values.xml"
+                if (aar.name == 'catvod-release.aar') {
+                    exclude "**/values.xml"
+                }
             }
         }
+
+        // values.xml of non-catvod modules is preserved by the copy step above (only
+        // catvod's is excluded due to doh_name/doh_url duplicate-key collision).
 
         // —— 合并 assets/ ——
         moduleAars.each { aar ->
