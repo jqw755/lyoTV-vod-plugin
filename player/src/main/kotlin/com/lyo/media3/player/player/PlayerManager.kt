@@ -125,6 +125,12 @@ class PlayerManager(
         startProgressReport()
     }
 
+    /** 供组件宿主连接视频输出 View；不向 JS 暴露。 */
+    fun getPlayer(): ExoPlayer? {
+        ensurePlayer()
+        return player
+    }
+
     /** 应用一份新配置（首次或 replaceSource），不重建 player 实例 */
     @Synchronized
     fun applyConfig(config: PlayerConfig) {
@@ -253,6 +259,7 @@ class PlayerManager(
             "duration" to (p?.duration ?: 0L),
             "bufferedPosition" to (p?.bufferedPosition ?: 0L),
             "playbackState" to (p?.playbackState ?: Player.STATE_IDLE),
+            "speed" to (p?.playbackParameters?.speed ?: current.speed),
             "mode" to current.mode.name,
         )
     }

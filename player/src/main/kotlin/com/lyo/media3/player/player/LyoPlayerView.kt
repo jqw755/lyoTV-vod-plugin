@@ -5,12 +5,13 @@ import android.content.Context
 import android.content.res.Configuration
 import android.util.AttributeSet
 import android.view.Gravity
+import android.view.TextureView
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
 import androidx.media3.common.Player
-import androidx.media3.ui.PlayerView
+import androidx.media3.exoplayer.ExoPlayer
 
 /**
  * 自定义 PlayerView 容器。
@@ -38,23 +39,43 @@ class LyoPlayerView @JvmOverloads constructor(
     defStyleAttr: Int = 0,
 ) : FrameLayout(context, attrs, defStyleAttr) {
 
-    /** 内嵌的 Media3 PlayerView */
-    val playerView: PlayerView = PlayerView(context).apply {
+    /**
+     * 使用 TextureView 而不是 SurfaceView。
+     * SurfaceView 是独立系统图层，uni-app 缓存 tab/nvue 页面时会残留最后一帧，
+     * 甚至穿透显示到新打开的详情页；TextureView 会正常参与页面合成与隐藏。
+     */
+    private val textureView: TextureView = TextureView(context).apply {
         layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT, Gravity.CENTER)
-        // 自定义控制层由 [VodControllerView] / [LiveControllerView] 接管，
-        // 关闭 PlayerView 自带的控制器
-        useController = false
-        setShutterBackgroundColor(0xFF000000.toInt())
+    }
+
+    /** 换源到首帧之间遮黑，避免显示上一条流的最后一帧。 */
+    private val shutterView: View = View(context).apply {
+        layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+        setBackgroundColor(0xFF000000.toInt())
+        isClickable = false
     }
 
     init {
-        addView(playerView)
+        addView(textureView)
+        addView(shutterView)
         setBackgroundColor(0xFF000000.toInt())
     }
 
-    /** 把 ExoPlayer 实例 attach 到 PlayerView（全屏切换前后都用同一个 player） */
+    /** 把 ExoPlayer 连接到实际的视频输出面。 */
     fun attachPlayer(player: Player?) {
-        playerView.player = player
+        (player as? ExoPlayer)?.setVideoTextureView(textureView)
+    }
+
+    fun detachPlayer(player: Player?) {
+        (player as? ExoPlayer)?.clearVideoTextureView(textureView)
+    }
+
+    fun showShutter() {
+        shutterView.visibility = View.VISIBLE
+    }
+
+    fun hideShutter() {
+        shutterView.visibility = View.GONE
     }
 
     /** 普通模式：计算 16:9 高度并应用到自身 */

@@ -125,6 +125,7 @@ tasks.register('fatAar') {
         // 注意：宿主及 uni 云打包基座(lib.5plus.base+uniapp-v8)已自带的库不可列入，
         // 否则 checkReleaseDuplicateClasses 失败（fastjson/kotlin-stdlib/okhttp/okio/listenablefuture/annotations）
         def includeGroups = [
+                'androidx.media3',          // 宿主不提供；播放器运行时必须自包含
                 'com.google.code.gson',     // gson
                 'com.squareup.okhttp3',     // okhttp-dnsoverhttps / logging-interceptor（okhttp 核心本体 exclude）
                 'com.squareup.okio',        // okio（核心本体 exclude）
@@ -220,7 +221,9 @@ tasks.register('fatAar') {
             def rTxt = new File(new File(workDir, aar.name.replace('.aar', '')), "R.txt")
             if (rTxt.exists()) rTxtLines.addAll(rTxt.readLines('UTF-8').findAll { !it.contains('doh_') })
         }
-        new File(mergeDir, "R.txt").withWriter('UTF-8') { w -> rTxtLines.each { w.writeLine(it) } }
+        new File(mergeDir, "R.txt").withWriter('UTF-8') { w ->
+            rTxtLines.unique().each { w.writeLine(it) }
+        }
 
         // —— 合并 res/（跳过 catvod 的 values.xml：含 doh_name/doh_url 数组，会与宿主或自身重复致 aapt2 Duplicate key；
         // Doh.get() 已容错资源缺失，DoH 仅 DNS 优化不影响订阅加载）——

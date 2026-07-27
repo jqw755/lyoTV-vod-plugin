@@ -12,6 +12,11 @@
           "type": "module",
           "name": "Fongmi-LivePlugin",
           "class": "com.fongmi.vod.LiveModule"
+        },
+        {
+          "type": "component",
+          "name": "lyo-player",
+          "class": "com.lyo.media3.player.LyoPlayerComponent"
         }
       ]
     }

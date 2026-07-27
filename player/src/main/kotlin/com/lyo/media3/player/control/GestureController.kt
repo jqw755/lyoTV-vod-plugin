@@ -56,7 +56,7 @@ class GestureController(
     })
 
     init {
-        view.playerView.setOnTouchListener { _, event ->
+        view.setOnTouchListener { _, event ->
             if (event.action == MotionEvent.ACTION_UP || event.action == MotionEvent.ACTION_CANCEL) {
                 if (longPressActive) {
                     longPressActive = false

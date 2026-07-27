@@ -3,7 +3,6 @@ package com.lyo.media3.player
 import android.content.Context
 import android.view.View
 import android.view.ViewGroup
-import com.alibaba.fastjson.JSONArray
 import com.alibaba.fastjson.JSONObject
 import com.lyo.media3.player.control.GestureController
 import com.lyo.media3.player.control.LiveControllerView
@@ -75,6 +74,8 @@ class LyoPlayerComponent(
     private var propAutoplay: Boolean = false
     private var propMuted: Boolean = false
     private var propStartPositionMs: Long = 0L
+    private var propsApplyScheduled = false
+    private var hasAppliedSource = false
 
     // ===== 宿主 View 初始化 =====
 
@@ -90,6 +91,8 @@ class LyoPlayerComponent(
             onProgressListener = ::onProgress,
             onFirstFrameListener = ::onFirstFrame,
         )
+        // 必须显式连接 ExoPlayer 与视频输出面；此前二者从未 attach，因而始终黑屏。
+        hostView.attachPlayer(manager.getPlayer())
 
         // 默认 VOD 控制层（mode 属性变更后切换）
         ensureController(PlayerConfig.Mode.VOD)
@@ -131,19 +134,31 @@ class LyoPlayerComponent(
         if (m != currentMode) {
             currentMode = m
             ensureController(m)
+            if (hasAppliedSource) scheduleApplyProps()
         }
     }
 
     @UniComponentProp(name = "src")
     fun setSrcProp(src: String) {
+        val changed = propSrc != src
         propSrc = src
-        applyProps()
+        if (!changed) return
+        hostView.showShutter()
+        if (src.isEmpty()) {
+            hasAppliedSource = false
+            manager.stop()
+        } else {
+            scheduleApplyProps()
+        }
     }
 
     @UniComponentProp(name = "headers")
     fun setHeadersProp(headers: JSONObject) {
-        propHeaders = parseHeaders(headers)
-        applyProps()
+        val parsed = parseHeaders(headers)
+        if (parsed != propHeaders) {
+            propHeaders = parsed
+            if (propSrc.isNotEmpty()) scheduleApplyProps()
+        }
     }
 
     @UniComponentProp(name = "title")
@@ -151,19 +166,19 @@ class LyoPlayerComponent(
         propTitle = title
         vodController?.setTitle(title)
         liveController?.setTitle(title)
-        applyProps()
     }
 
     @UniComponentProp(name = "poster")
     fun setPosterProp(poster: String) {
         propPoster = poster
-        applyProps()
     }
 
     @UniComponentProp(name = "autoplay")
     fun setAutoplayProp(autoplay: Boolean) {
         propAutoplay = autoplay
-        applyProps()
+        if (hasAppliedSource) {
+            if (autoplay) manager.play() else manager.pause()
+        }
     }
 
     @UniComponentProp(name = "muted")
@@ -172,13 +187,12 @@ class LyoPlayerComponent(
         manager.setMuted(muted)
         vodController?.setMuted(muted)
         liveController?.setMuted(muted)
-        applyProps()
     }
 
     @UniComponentProp(name = "startPosition")
     fun setStartPositionProp(positionMs: Long) {
         propStartPositionMs = positionMs
-        applyProps()
+        if (hasAppliedSource && positionMs > 0L) manager.seekTo(positionMs)
     }
 
     @UniComponentProp(name = "speed")
@@ -246,6 +260,7 @@ class LyoPlayerComponent(
         if (options.containsKey("muted")) propMuted = options.getBooleanValue("muted")
         propStartPositionMs = position
 
+        hostView.showShutter()
         val config = PlayerConfig(
             mode = currentMode,
             src = src,
@@ -258,6 +273,7 @@ class LyoPlayerComponent(
             speed = lastUserSpeed,
         )
         manager.applyConfig(config)
+        hasAppliedSource = src.isNotEmpty()
     }
 
     @UniJSMethod(uiThread = true)
@@ -295,6 +311,7 @@ class LyoPlayerComponent(
     /** 释放：必须幂等，多次调用不崩溃（§7.2） */
     @UniJSMethod(uiThread = true)
     fun release() {
+        hostView.detachPlayer(manager.getPlayer())
         manager.release()
     }
 
@@ -313,6 +330,7 @@ class LyoPlayerComponent(
 
     override fun onActivityDestroy() {
         super.onActivityDestroy()
+        hostView.detachPlayer(manager.getPlayer())
         manager.release()
     }
 
@@ -353,6 +371,7 @@ class LyoPlayerComponent(
      */
     private fun applyProps() {
         if (propSrc.isEmpty()) return
+        hostView.showShutter()
         val config = PlayerConfig(
             mode = currentMode,
             src = propSrc,
@@ -365,6 +384,17 @@ class LyoPlayerComponent(
             speed = lastUserSpeed,
         )
         manager.applyConfig(config)
+        hasAppliedSource = true
+    }
+
+    /** 合并同一轮 nvue 属性 setter，避免每个属性都重新 prepare 当前媒体。 */
+    private fun scheduleApplyProps() {
+        if (propsApplyScheduled) return
+        propsApplyScheduled = true
+        hostView.post {
+            propsApplyScheduled = false
+            applyProps()
+        }
     }
 
     /** 切换控制层（仅一种生效），全屏切换前后都使用同一个 playerView */
@@ -458,6 +488,7 @@ class LyoPlayerComponent(
     }
 
     private fun onFirstFrame() {
+        hostView.hideShutter()
         fireEvent("firstframe", mapOf("detail" to emptyMap<String, Any>()))
     }
 
