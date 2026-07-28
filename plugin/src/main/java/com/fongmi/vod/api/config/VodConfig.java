@@ -39,6 +39,7 @@ public class VodConfig extends BaseConfig {
     private List<String> ads;
     private List<String> flags;
     private List<Parse> parses;
+    private List<Depot> depots;
 
     public static VodConfig get() {
         return Loader.INSTANCE;
@@ -66,6 +67,14 @@ public class VodConfig extends BaseConfig {
 
     public static void load(Config config, Callback callback) {
         get().clear().config(config).load(callback);
+    }
+
+    public List<Depot> getDepots() {
+        return depots == null ? Collections.emptyList() : depots;
+    }
+
+    public void clearDepots() {
+        depots = null;
     }
 
     public VodConfig init() {
@@ -129,6 +138,7 @@ public class VodConfig extends BaseConfig {
 
     private void parseDepot(Config config, JsonObject object) throws Throwable {
         List<Depot> items = Depot.arrayFrom(object.getAsJsonArray("urls").toString());
+        depots = new ArrayList<>(items);
         List<Config> configs = new ArrayList<>();
         for (Depot item : items) configs.add(Config.find(item, VOD));
         if (configs.isEmpty()) throw new Exception("Depot urls is empty");

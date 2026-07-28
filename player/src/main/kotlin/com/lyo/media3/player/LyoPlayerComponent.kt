@@ -1,6 +1,7 @@
 package com.lyo.media3.player
 
 import android.content.Context
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import com.alibaba.fastjson.JSONObject
@@ -40,6 +41,10 @@ class LyoPlayerComponent(
     parent: AbsVContainer<*>,
     basicComponentData: AbsComponentData<*>,
 ) : UniComponent<LyoPlayerView>(instance, parent, basicComponentData) {
+
+    private companion object {
+        const val TAG = "LyoPlayerComponent"
+    }
 
     private lateinit var hostView: LyoPlayerView
     private lateinit var manager: PlayerManager
@@ -94,33 +99,50 @@ class LyoPlayerComponent(
         // 必须显式连接 ExoPlayer 与视频输出面；此前二者从未 attach，因而始终黑屏。
         hostView.attachPlayer(manager.getPlayer())
 
-        // 默认 VOD 控制层（mode 属性变更后切换）
-        ensureController(PlayerConfig.Mode.VOD)
-
-        // 手势
-        gesture = GestureController(
-            view = hostView,
-            onLongPressSpeedStart = { speed ->
-                // 长按临时倍速：保存当前 speed，应用临时 speed
-                lastUserSpeed = manager.getState()["speed"] as? Float ?: 1f
-                manager.setSpeed(speed)
-                fireLongPressSpeed(speed, true)
-            },
-            onLongPressSpeedEnd = {
-                manager.setSpeed(lastUserSpeed)
-                fireLongPressSpeed(lastUserSpeed, false)
-            },
-            onDoubleTapTogglePlay = {
-                val isPlaying = manager.getState()["isPlaying"] == true
-                if (isPlaying) manager.pause() else manager.play()
-            },
-            onSingleTap = {
-                // 单击：切换控制层显隐
-                vodController?.toggleVisible() ?: liveController?.toggleVisible()
-            },
-        )
+        // Keep playback initialization independent from optional controller UI.
+        hostView.post { initControllerAndGestureSafely() }
 
         return hostView
+    }
+
+    private fun initControllerAndGestureSafely() {
+        try {
+            ensureController(currentMode)
+        } catch (t: Throwable) {
+            Log.e(TAG, "controller init failed; playback core remains available", t)
+        }
+        try {
+            gesture = GestureController(
+                view = hostView,
+                onLongPressSpeedStart = { speed ->
+                    if (currentMode == PlayerConfig.Mode.VOD) {
+                        lastUserSpeed = manager.getState()["speed"] as? Float ?: 1f
+                        manager.setSpeed(speed)
+                        hostView.showLongPressSpeedHint(speed)
+                        fireLongPressSpeed(speed, true)
+                    }
+                },
+                onLongPressSpeedEnd = {
+                    if (currentMode == PlayerConfig.Mode.VOD) {
+                        manager.setSpeed(lastUserSpeed)
+                        hostView.hideLongPressSpeedHint()
+                        fireLongPressSpeed(lastUserSpeed, false)
+                    }
+                },
+                onDoubleTapTogglePlay = {
+                    val isPlaying = manager.getState()["isPlaying"] == true
+                    if (isPlaying) manager.pause() else manager.play()
+                },
+                onSingleTap = {
+                    when (currentMode) {
+                        PlayerConfig.Mode.VOD -> vodController?.toggleVisible()
+                        PlayerConfig.Mode.LIVE -> liveController?.toggleVisible()
+                    }
+                },
+            )
+        } catch (t: Throwable) {
+            Log.e(TAG, "gesture init failed; playback core remains available", t)
+        }
     }
 
     // ===== 属性（@UniComponentProp，§7.1） =====
@@ -133,7 +155,11 @@ class LyoPlayerComponent(
         }
         if (m != currentMode) {
             currentMode = m
-            ensureController(m)
+            try {
+                ensureController(m)
+            } catch (t: Throwable) {
+                Log.e(TAG, "controller switch failed: $m", t)
+            }
             if (hasAppliedSource) scheduleApplyProps()
         }
     }
@@ -261,6 +287,7 @@ class LyoPlayerComponent(
         propStartPositionMs = position
 
         hostView.showShutter()
+        liveController?.showError(null)
         val config = PlayerConfig(
             mode = currentMode,
             src = src,
@@ -272,6 +299,9 @@ class LyoPlayerComponent(
             startPositionMs = position,
             speed = lastUserSpeed,
         )
+        vodController?.setPlaying(autoplay)
+        liveController?.setPlaying(autoplay)
+        liveController?.showLoading(autoplay)
         manager.applyConfig(config)
         hasAppliedSource = src.isNotEmpty()
     }
@@ -383,6 +413,10 @@ class LyoPlayerComponent(
             startPositionMs = propStartPositionMs,
             speed = lastUserSpeed,
         )
+        vodController?.setPlaying(propAutoplay)
+        liveController?.setPlaying(propAutoplay)
+        liveController?.showError(null)
+        liveController?.showLoading(propAutoplay)
         manager.applyConfig(config)
         hasAppliedSource = true
     }
@@ -424,9 +458,19 @@ class LyoPlayerComponent(
                         onFullscreenToggle = { fs ->
                             if (fs) requestFullscreen() else exitFullscreen()
                         },
+                        onBack = {
+                            fireEvent("back", mapOf("detail" to mapOf("isFullscreen" to isFullscreen)))
+                        },
                     )
                 }
-                vodController?.attachTo(hostView)
+                vodController?.apply {
+                    attachTo(hostView)
+                    setTitle(propTitle)
+                    setMuted(propMuted)
+                    setSpeed(lastUserSpeed)
+                    setPlaying(manager.getState()["isPlaying"] == true)
+                    show()
+                }
             }
             PlayerConfig.Mode.LIVE -> {
                 if (liveController == null) {
@@ -443,14 +487,27 @@ class LyoPlayerComponent(
                             if (fs) requestFullscreen() else exitFullscreen()
                         },
                         onGoLiveEdge = { manager.goLiveEdge() },
+                        onBack = {
+                            fireEvent("back", mapOf("detail" to mapOf("isFullscreen" to isFullscreen)))
+                        },
                     )
                 }
-                liveController?.attachTo(hostView)
+                liveController?.apply {
+                    attachTo(hostView)
+                    setTitle(propTitle)
+                    setMuted(propMuted)
+                    setPlaying(manager.getState()["isPlaying"] == true)
+                    show()
+                }
             }
         }
     }
 
     private fun onError(err: PlayerErrorMapper.MappedError) {
+        vodController?.setPlaying(false)
+        liveController?.setPlaying(false)
+        liveController?.showLoading(false)
+        liveController?.showError(err.message)
         val detail = mapOf(
             "code" to err.code,
             "message" to err.message,
@@ -461,6 +518,26 @@ class LyoPlayerComponent(
     }
 
     private fun onStateChanged(state: PlayerManager.State) {
+        when (state) {
+            PlayerManager.State.PLAYING -> {
+                vodController?.setPlaying(true)
+                liveController?.setPlaying(true)
+                liveController?.showLoading(false)
+            }
+            PlayerManager.State.PAUSED, PlayerManager.State.ENDED -> {
+                vodController?.setPlaying(false)
+                liveController?.setPlaying(false)
+                liveController?.showLoading(false)
+            }
+            PlayerManager.State.BUFFERING -> liveController?.showLoading(true)
+            PlayerManager.State.READY -> {
+                val playing = manager.getState()["isPlaying"] == true
+                vodController?.setPlaying(playing)
+                liveController?.setPlaying(playing)
+                liveController?.showLoading(false)
+            }
+            PlayerManager.State.IDLE -> Unit
+        }
         when (state) {
             PlayerManager.State.IDLE -> Unit
             PlayerManager.State.READY -> fireEvent("ready", mapOf("detail" to emptyMap<String, Any>()))
@@ -477,6 +554,7 @@ class LyoPlayerComponent(
     }
 
     private fun onProgress(positionMs: Long, durationMs: Long, bufferedMs: Long) {
+        vodController?.updateProgress(positionMs, durationMs, bufferedMs)
         val detail = mapOf(
             "position" to positionMs,
             "duration" to durationMs,

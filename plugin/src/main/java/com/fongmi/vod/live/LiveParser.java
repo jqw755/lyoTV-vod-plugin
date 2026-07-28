@@ -61,7 +61,7 @@ public class LiveParser {
     }
 
     private static String getText(Live live) throws Exception {
-        return OkHttp.string(live.getUrl(), live.getHeaders());
+        return OkHttp.string(live.getUrl(), live.getHeaders(), 10000);
     }
 
     public static void text(Live live, String text) {

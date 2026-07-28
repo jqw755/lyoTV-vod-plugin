@@ -45,8 +45,16 @@ public class LiveConfig {
     /** 初始化：拉取订阅JSON → 解析lives → LiveParser解析频道 */
     public synchronized void init(String url) throws Exception {
         android.util.Log.i("LivePlugin", "LiveConfig.init url=" + url);
-        clear();  // 清空旧数据，防止订阅切换后残留
-        // 与 VodConfig 对齐：用 Decoder.getJson 处理加密/编码内容
+        // 在独立候选实例中完成下载和解析，成功后再一次性提交。
+        // 验证期间和验证失败时，当前正在使用的配置始终保持可用。
+        LiveConfig candidate = new LiveConfig();
+        candidate.load(url);
+        home = candidate.home;
+        lives = candidate.lives;
+        headers = candidate.headers;
+    }
+
+    private void load(String url) throws Exception {
         String json = com.fongmi.vod.api.Decoder.getJson(com.fongmi.vod.utils.UrlUtil.convert(url), "LiveConfig");
         android.util.Log.i("LivePlugin", "LiveConfig.init fetched, len=" + (json == null ? 0 : json.length()) + " isObj=" + Json.isObj(json));
         if (Json.isObj(json)) {
@@ -55,7 +63,6 @@ public class LiveConfig {
             parseLives(obj);
             android.util.Log.i("LivePlugin", "LiveConfig.init done, lives=" + lives.size() + " groups=" + getHome().getGroups().size());
         } else {
-            // 纯文本 M3U/TXT
             Live live = new Live(url, url);
             lives = new ArrayList<>();
             lives.add(live);
@@ -63,6 +70,7 @@ public class LiveConfig {
             setHome(live);
             android.util.Log.i("LivePlugin", "LiveConfig.init text-mode done, groups=" + getHome().getGroups().size());
         }
+        if (getHome().getGroups().isEmpty()) throw new IllegalStateException("直播源未解析到频道");
     }
 
     private void parseHeaders(JSONObject obj) {

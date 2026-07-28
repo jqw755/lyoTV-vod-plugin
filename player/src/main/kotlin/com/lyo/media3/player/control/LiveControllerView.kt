@@ -2,6 +2,7 @@ package com.lyo.media3.player.control
 
 import android.content.Context
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.os.Looper
 import android.util.TypedValue
@@ -36,6 +37,7 @@ class LiveControllerView(
     private val onMuteToggle: (Boolean) -> Unit,
     private val onFullscreenToggle: (Boolean) -> Unit,
     private val onGoLiveEdge: () -> Unit,
+    private val onBack: () -> Unit,
 ) : FrameLayout(context) {
 
     private val handler = Handler(Looper.getMainLooper())
@@ -47,12 +49,13 @@ class LiveControllerView(
     private var isFullscreen = false
 
     private val topBar: LinearLayout
-    private val centerPlayBtn: TextView
+    private val centerPlayBtn: PlayerIconView
     private val bottomBar: LinearLayout
     private val titleText: TextView
     private val lineBadge: TextView
-    private val muteBtn: TextView
-    private val fullscreenBtn: TextView
+    private val muteBtn: PlayerIconView
+    private val fullscreenBtn: PlayerIconView
+    private val backBtn: PlayerIconView
     private val liveEdgeBtn: TextView
     private val loadingView: ProgressBar
     private val errorText: TextView
@@ -61,12 +64,12 @@ class LiveControllerView(
         setBackgroundColor(Color.TRANSPARENT)
         layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
 
-        // 顶部栏：频道名 + 线路序号 + 静音 + 全屏
+        // 顶部栏：返回 + 频道名 + 线路序号
         topBar = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(12), dp(8), dp(12), dp(8))
-            setBackgroundColor(0x66000000)
+            background = topGradient()
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.TOP)
         }
         titleText = TextView(context).apply {
@@ -81,34 +84,30 @@ class LiveControllerView(
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
             setPadding(dp(8), 0, dp(8), 0)
         }
-        muteBtn = makeBtn("🔊") { toggleMute() }
-        fullscreenBtn = makeBtn("⛶") { toggleFullscreen() }
+        backBtn = makeIconBtn(PlayerIconView.Icon.BACK) {
+            if (isFullscreen) onFullscreenToggle(false) else onBack()
+        }
+        muteBtn = makeIconBtn(PlayerIconView.Icon.VOLUME) { toggleMute() }
+        fullscreenBtn = makeIconBtn(PlayerIconView.Icon.FULLSCREEN) { toggleFullscreen() }
+        topBar.addView(backBtn)
         topBar.addView(titleText)
         topBar.addView(lineBadge)
-        topBar.addView(muteBtn)
-        topBar.addView(fullscreenBtn)
 
-        // 中央播放按钮
-        centerPlayBtn = TextView(context).apply {
-            setTextColor(Color.WHITE)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 32f)
-            text = "▶"
-            gravity = Gravity.CENTER
-            setBackgroundColor(0x66000000)
-            val size = dp(64)
-            layoutParams = LayoutParams(size, size, Gravity.CENTER)
+        // 中央播放按钮：纯矢量图标，无半透明按钮底
+        centerPlayBtn = PlayerIconView(context, PlayerIconView.Icon.PLAY, 46).apply {
+            layoutParams = LayoutParams(dp(72), dp(72), Gravity.CENTER)
             setOnClickListener {
                 if (isPlaying) onPauseToggle() else onPlayToggle()
                 show()
             }
         }
 
-        // 底部栏：回到直播
+        // 底部栏：直播状态 + 音量 + 全屏
         bottomBar = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL or Gravity.END
+            gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(12), dp(6), dp(12), dp(6))
-            setBackgroundColor(0x99000000.toInt())
+            background = bottomGradient()
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.BOTTOM)
         }
         liveEdgeBtn = TextView(context).apply {
@@ -119,6 +118,9 @@ class LiveControllerView(
             setOnClickListener { onGoLiveEdge(); show() }
         }
         bottomBar.addView(liveEdgeBtn)
+        bottomBar.addView(View(context), LinearLayout.LayoutParams(0, 1, 1f))
+        bottomBar.addView(muteBtn)
+        bottomBar.addView(fullscreenBtn)
 
         // 加载 / 错误状态
         loadingView = ProgressBar(context).apply {
@@ -168,17 +170,17 @@ class LiveControllerView(
 
     fun setMuted(muted: Boolean) {
         isMuted = muted
-        muteBtn.text = if (muted) "🔇" else "🔊"
+        muteBtn.icon = if (muted) PlayerIconView.Icon.MUTED else PlayerIconView.Icon.VOLUME
     }
 
     fun setFullscreen(fs: Boolean) {
         isFullscreen = fs
-        fullscreenBtn.text = if (fs) "⤢" else "⛶"
+        fullscreenBtn.icon = if (fs) PlayerIconView.Icon.EXIT_FULLSCREEN else PlayerIconView.Icon.FULLSCREEN
     }
 
     fun setPlaying(playing: Boolean) {
         isPlaying = playing
-        centerPlayBtn.text = if (playing) "⏸" else "▶"
+        centerPlayBtn.icon = if (playing) PlayerIconView.Icon.PAUSE else PlayerIconView.Icon.PLAY
     }
 
     fun showLoading(show: Boolean) {
@@ -216,7 +218,7 @@ class LiveControllerView(
 
     private fun toggleMute() {
         isMuted = !isMuted
-        muteBtn.text = if (isMuted) "🔇" else "🔊"
+        muteBtn.icon = if (isMuted) PlayerIconView.Icon.MUTED else PlayerIconView.Icon.VOLUME
         onMuteToggle(isMuted)
         show()
     }
@@ -237,15 +239,21 @@ class LiveControllerView(
         autoHideRunnable = null
     }
 
-    private fun makeBtn(label: String, onClick: () -> Unit): TextView {
-        return TextView(context).apply {
-            text = label
-            setTextColor(Color.WHITE)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
-            setPadding(dp(12), dp(6), dp(12), dp(6))
+    private fun makeIconBtn(icon: PlayerIconView.Icon, onClick: () -> Unit): PlayerIconView {
+        return PlayerIconView(context, icon).apply {
             setOnClickListener { onClick(); show() }
         }
     }
+
+    private fun topGradient() = GradientDrawable(
+        GradientDrawable.Orientation.TOP_BOTTOM,
+        intArrayOf(0xB8000000.toInt(), 0x00000000)
+    )
+
+    private fun bottomGradient() = GradientDrawable(
+        GradientDrawable.Orientation.TOP_BOTTOM,
+        intArrayOf(0x00000000, 0xCC000000.toInt())
+    )
 
     private fun dp(v: Int): Int {
         return TypedValue.applyDimension(

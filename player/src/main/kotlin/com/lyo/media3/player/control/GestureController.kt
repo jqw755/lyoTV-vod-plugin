@@ -37,6 +37,13 @@ class GestureController(
     private var longPressActive = false
 
     private val detector = GestureDetector(view.context, object : GestureDetector.SimpleOnGestureListener() {
+        override fun onDown(e: MotionEvent): Boolean {
+            // GestureDetector 只有在 DOWN 被接受后才会继续派发单击、双击和长按。
+            // 默认实现返回 false，会导致播放器空白区域看似能收到触摸，
+            // 但永远不会回调 onSingleTapConfirmed，从而无法重新显示控制 UI。
+            return true
+        }
+
         override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
             onSingleTap()
             return true
@@ -56,7 +63,7 @@ class GestureController(
     })
 
     init {
-        view.setOnTouchListener { _, event ->
+        view.setPlayerGestureTouchListener { _, event ->
             if (event.action == MotionEvent.ACTION_UP || event.action == MotionEvent.ACTION_CANCEL) {
                 if (longPressActive) {
                     longPressActive = false

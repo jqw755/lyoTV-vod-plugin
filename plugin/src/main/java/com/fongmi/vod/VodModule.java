@@ -109,6 +109,32 @@ public class VodModule extends UniModule {
         }
     }
 
+    @UniJSMethod(uiThread = false)
+    public void getVodDepots(JSONObject args, UniJSCallback cb) {
+        try {
+            com.alibaba.fastjson.JSONArray arr = new com.alibaba.fastjson.JSONArray();
+            String currentUrl = com.fongmi.vod.api.config.VodConfig.getUrl();
+            for (com.fongmi.vod.bean.Depot depot : com.fongmi.vod.api.config.VodConfig.get().getDepots()) {
+                com.alibaba.fastjson.JSONObject item = new com.alibaba.fastjson.JSONObject();
+                item.put("name", depot.getName());
+                item.put("url", depot.getUrl());
+                item.put("selected", depot.getUrl().equals(currentUrl));
+                arr.add(item);
+            }
+            com.alibaba.fastjson.JSONObject ret = new com.alibaba.fastjson.JSONObject();
+            ret.put("code", 0);
+            ret.put("data", arr);
+            cb.invoke(ret);
+        } catch (Throwable e) {
+            cb.invoke(error(-2, e.getMessage()));
+        }
+    }
+
+    @UniJSMethod(uiThread = false)
+    public void switchVodDepot(JSONObject args, UniJSCallback cb) {
+        safeCall(args, cb, VodBridge::switchDepot);
+    }
+
     /** 搜索单个站点，结果含 site_name 字段方便前端分组 */
     @UniJSMethod(uiThread = false)
     public void searchSite(JSONObject args, UniJSCallback cb) {

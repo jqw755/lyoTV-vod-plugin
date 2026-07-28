@@ -6,6 +6,7 @@ import com.alibaba.fastjson.JSONObject;
 import com.fongmi.vod.api.SiteApi;
 import com.fongmi.vod.api.config.VodConfig;
 import com.fongmi.vod.bean.Config;
+import com.fongmi.vod.bean.Depot;
 import com.fongmi.vod.bean.Result;
 import com.fongmi.vod.bean.Site;
 import com.fongmi.vod.bean.Vod;
@@ -60,6 +61,7 @@ public class VodBridge {
                 return;
             }
             Config config = Config.vod().url(url);
+            VodConfig.get().clearDepots();
             VodConfig.load(config, new Callback() {
                 @Override
                 public void start() {
@@ -75,6 +77,37 @@ public class VodBridge {
                 @Override
                 public void error(String msg) {
                     android.util.Log.e("VodPlugin", "VodConfig.load error: " + msg);
+                    cb.invoke(VodBridge.error(-2, msg));
+                }
+            });
+        }, cb);
+    }
+
+    public static void switchDepot(JsonObject args, UniJSCallback cb) {
+        invoke(() -> {
+            String url = Json.safeString(args, "url");
+            Depot target = null;
+            for (Depot item : VodConfig.get().getDepots()) {
+                if (item.getUrl().equals(url)) {
+                    target = item;
+                    break;
+                }
+            }
+            if (target == null) {
+                cb.invoke(error(-1, "warehouse not found"));
+                return;
+            }
+            Config config = Config.find(target, 0);
+            VodConfig.load(config, new Callback() {
+                @Override public void start() {}
+                @Override public void success() {
+                    JSONObject data = new JSONObject();
+                    data.put("sites", VodConfig.get().getSites().size());
+                    data.put("name", config.getName());
+                    data.put("url", config.getUrl());
+                    cb.invoke(ok(data));
+                }
+                @Override public void error(String msg) {
                     cb.invoke(VodBridge.error(-2, msg));
                 }
             });

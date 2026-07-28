@@ -121,6 +121,17 @@ public class OkHttp {
         }
     }
 
+    public static String string(String url, Map<String, String> headers, long timeout) {
+        if (!url.startsWith("http")) return "";
+        Request request = new Request.Builder().url(url).headers(Headers.of(headers)).build();
+        try (Response res = client(timeout).newCall(request).execute()) {
+            return res.body().string();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "";
+        }
+    }
+
     public static Call newCall(String url) {
         return client().newCall(new Request.Builder().url(url).build());
     }

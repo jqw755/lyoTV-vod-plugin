@@ -59,9 +59,10 @@ public class LiveBridge {
             android.util.Log.i("LivePlugin", "liveGetGroups: groups=" + groups.size() + " lives=" + LiveConfig.get().getLives().size());
             JSONArray arr = new JSONArray();
             for (Group g : groups) {
-                if (g.getName().isEmpty()) continue;
                 JSONObject obj = new JSONObject();
-                obj.put("name", g.getName());
+                // Fongmi 会保留未声明 group-title/#genre# 的频道；不能因为分组名为空
+                // 就丢掉整组。桥接层给空分组一个稳定显示名，getChannels 再反向匹配。
+                obj.put("name", g.getName().isEmpty() ? "未分组" : g.getName());
                 obj.put("channelCount", g.getChannel().size());
                 arr.add(obj);
             }
@@ -80,7 +81,8 @@ public class LiveBridge {
             Live home = LiveConfig.get().getHome();
             Group target = null;
             for (Group g : home.getGroups()) {
-                if (g.getName().equals(groupName)) {
+                if (g.getName().equals(groupName)
+                        || (g.getName().isEmpty() && "未分组".equals(groupName))) {
                     target = g;
                     break;
                 }

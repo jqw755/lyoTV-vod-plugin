@@ -3,15 +3,19 @@ package com.lyo.media3.player.player
 import android.app.Activity
 import android.content.Context
 import android.content.res.Configuration
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.util.AttributeSet
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.TextureView
 import android.view.View
 import android.view.ViewGroup
-import android.view.WindowManager
 import android.widget.FrameLayout
+import android.widget.TextView
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import java.util.Locale
 
 /**
  * 自定义 PlayerView 容器。
@@ -55,9 +59,43 @@ class LyoPlayerView @JvmOverloads constructor(
         isClickable = false
     }
 
+    /**
+     * 专门接收视频空白区域手势。
+     *
+     * 不能只监听 FrameLayout：触摸事件会先命中 TextureView，父容器的
+     * OnTouchListener 在 nvue 中收不到完整事件序列。该透明层位于视频画面之上、
+     * 控制层之下，不影响控制按钮点击，也不参与视频渲染。
+     */
+    private val gestureTouchView: View = View(context).apply {
+        layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+        setBackgroundColor(0x00000000)
+        isClickable = true
+    }
+
+    private val speedHintView: TextView = TextView(context).apply {
+        setTextColor(Color.WHITE)
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
+        gravity = Gravity.CENTER
+        setPadding(dp(16), dp(9), dp(16), dp(9))
+        background = GradientDrawable().apply {
+            setColor(0xB8000000.toInt())
+            cornerRadius = dp(8).toFloat()
+        }
+        visibility = View.GONE
+        isClickable = false
+        isFocusable = false
+        layoutParams = LayoutParams(
+            LayoutParams.WRAP_CONTENT,
+            LayoutParams.WRAP_CONTENT,
+            Gravity.CENTER,
+        )
+    }
+
     init {
         addView(textureView)
         addView(shutterView)
+        addView(gestureTouchView)
+        addView(speedHintView)
         setBackgroundColor(0xFF000000.toInt())
     }
 
@@ -68,6 +106,20 @@ class LyoPlayerView @JvmOverloads constructor(
 
     fun detachPlayer(player: Player?) {
         (player as? ExoPlayer)?.clearVideoTextureView(textureView)
+    }
+
+    fun setPlayerGestureTouchListener(listener: OnTouchListener) {
+        gestureTouchView.setOnTouchListener(listener)
+    }
+
+    fun showLongPressSpeedHint(speed: Float) {
+        speedHintView.text = String.format(Locale.US, "%.1fx 倍速播放", speed)
+        speedHintView.visibility = View.VISIBLE
+        speedHintView.bringToFront()
+    }
+
+    fun hideLongPressSpeedHint() {
+        speedHintView.visibility = View.GONE
     }
 
     fun showShutter() {
@@ -87,4 +139,10 @@ class LyoPlayerView @JvmOverloads constructor(
             height = h
         } ?: LayoutParams(LayoutParams.MATCH_PARENT, h)
     }
+
+    private fun dp(value: Int): Int = TypedValue.applyDimension(
+        TypedValue.COMPLEX_UNIT_DIP,
+        value.toFloat(),
+        resources.displayMetrics,
+    ).toInt()
 }

@@ -1,8 +1,8 @@
 package com.lyo.media3.player.control
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.os.Looper
 import android.util.TypedValue
@@ -10,9 +10,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.ProgressBar
 import android.widget.SeekBar
 import android.widget.TextView
 import com.lyo.media3.player.player.LyoPlayerView
@@ -43,6 +41,7 @@ class VodControllerView(
     private val onNextEpisode: () -> Unit,
     private val onMuteToggle: (Boolean) -> Unit,
     private val onFullscreenToggle: (Boolean) -> Unit,
+    private val onBack: () -> Unit,
 ) : FrameLayout(context) {
 
     private val handler = Handler(Looper.getMainLooper())
@@ -55,32 +54,33 @@ class VodControllerView(
     private var currentSpeed = 1f
 
     // 控件
-    private val centerPlayBtn: TextView
+    private val centerPlayBtn: PlayerIconView
     private val bottomBar: LinearLayout
     private val topBar: LinearLayout
     private val seekBar: SeekBar
     private val currentTimeText: TextView
     private val durationText: TextView
     private val speedBtn: TextView
-    private val prevBtn: TextView
-    private val nextBtn: TextView
-    private val muteBtn: TextView
-    private val fullscreenBtn: TextView
+    private val prevBtn: PlayerIconView
+    private val nextBtn: PlayerIconView
+    private val muteBtn: PlayerIconView
+    private val fullscreenBtn: PlayerIconView
+    private val backBtn: PlayerIconView
     private val titleText: TextView
 
-    private val speedOptions = floatArrayOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f, 3f)
+    private val speedOptions = floatArrayOf(1f, 1.5f, 1.75f, 2f, 3f, 4f)
     private var speedPopup: LinearLayout? = null
 
     init {
         setBackgroundColor(Color.TRANSPARENT)
         layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
 
-        // 顶部栏：标题 + 静音 + 全屏
+        // 顶部栏：返回 + 标题
         topBar = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(12), dp(8), dp(12), dp(8))
-            setBackgroundColor(0x66000000)
+            background = topGradient()
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.TOP)
         }
         titleText = TextView(context).apply {
@@ -90,36 +90,32 @@ class VodControllerView(
             ellipsize = android.text.TextUtils.TruncateAt.END
             layoutParams = LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f)
         }
-        muteBtn = makeBtn("🔇") { toggleMute() }
-        fullscreenBtn = makeBtn("⛶") { toggleFullscreen() }
+        backBtn = makeIconBtn(PlayerIconView.Icon.BACK) {
+            if (isFullscreen) onFullscreenToggle(false) else onBack()
+        }
+        topBar.addView(backBtn)
         topBar.addView(titleText)
-        topBar.addView(muteBtn)
-        topBar.addView(fullscreenBtn)
 
-        // 中央播放按钮
-        centerPlayBtn = TextView(context).apply {
-            setTextColor(Color.WHITE)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 32f)
-            text = "▶"
-            gravity = Gravity.CENTER
-            setBackgroundColor(0x66000000)
-            val size = dp(64)
-            layoutParams = LayoutParams(size, size, Gravity.CENTER)
+        // 中央播放按钮：只显示图标，不添加圆形/半透明遮罩
+        centerPlayBtn = PlayerIconView(context, PlayerIconView.Icon.PLAY, 46).apply {
+            layoutParams = LayoutParams(dp(72), dp(72), Gravity.CENTER)
             setOnClickListener {
                 if (isPlaying) onPauseToggle() else onPlayToggle()
                 show()
             }
         }
 
-        // 底部栏：上一集 / 进度条+时间 / 倍速 / 下一集
+        // 底部栏：上方进度，下方常用操作
         bottomBar = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(12), dp(6), dp(12), dp(6))
-            setBackgroundColor(0x99000000.toInt())
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(12), dp(4), dp(8), dp(6))
+            background = bottomGradient()
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.BOTTOM)
         }
-        prevBtn = makeBtn("⏮") { onPrevEpisode() }
+        prevBtn = makeIconBtn(PlayerIconView.Icon.PREVIOUS) { onPrevEpisode() }
+        nextBtn = makeIconBtn(PlayerIconView.Icon.NEXT) { onNextEpisode() }
+        muteBtn = makeIconBtn(PlayerIconView.Icon.VOLUME) { toggleMute() }
+        fullscreenBtn = makeIconBtn(PlayerIconView.Icon.FULLSCREEN) { toggleFullscreen() }
         currentTimeText = TextView(context).apply {
             setTextColor(Color.WHITE)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
@@ -147,20 +143,42 @@ class VodControllerView(
             text = "00:00"
             setPadding(dp(4), 0, dp(4), 0)
         }
-        nextBtn = makeBtn("⏭") { onNextEpisode() }
         speedBtn = TextView(context).apply {
             setTextColor(Color.WHITE)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
             text = "1.0x"
+            val speedIcon = resolvePlayerDrawable(context, "lyo_ic_speed")
+            if (speedIcon != 0) {
+                val drawable = resources.getDrawable(speedIcon, context.theme).apply {
+                    setBounds(0, 0, dp(24), dp(24))
+                }
+                setCompoundDrawablesRelative(drawable, null, null, null)
+            }
+            compoundDrawablePadding = dp(4)
+            gravity = Gravity.CENTER_VERTICAL
+            includeFontPadding = false
             setPadding(dp(12), dp(6), dp(12), dp(6))
             setOnClickListener { toggleSpeedPopup() }
         }
-        bottomBar.addView(prevBtn)
-        bottomBar.addView(currentTimeText)
-        bottomBar.addView(seekBar)
-        bottomBar.addView(durationText)
-        bottomBar.addView(nextBtn)
-        bottomBar.addView(speedBtn)
+        val progressRow = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            addView(currentTimeText)
+            addView(seekBar)
+            addView(durationText)
+        }
+        val actionRow = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            addView(prevBtn)
+            addView(nextBtn)
+            addView(View(context), LinearLayout.LayoutParams(0, 1, 1f))
+            addView(speedBtn)
+            addView(muteBtn)
+            addView(fullscreenBtn)
+        }
+        bottomBar.addView(progressRow)
+        bottomBar.addView(actionRow)
 
         addView(topBar)
         addView(centerPlayBtn)
@@ -187,12 +205,12 @@ class VodControllerView(
 
     fun setMuted(muted: Boolean) {
         isMuted = muted
-        muteBtn.text = if (muted) "🔇" else "🔊"
+        muteBtn.icon = if (muted) PlayerIconView.Icon.MUTED else PlayerIconView.Icon.VOLUME
     }
 
     fun setFullscreen(fs: Boolean) {
         isFullscreen = fs
-        fullscreenBtn.text = if (fs) "⤢" else "⛶"
+        fullscreenBtn.icon = if (fs) PlayerIconView.Icon.EXIT_FULLSCREEN else PlayerIconView.Icon.FULLSCREEN
     }
 
     fun setSpeed(speed: Float) {
@@ -202,7 +220,7 @@ class VodControllerView(
 
     fun setPlaying(playing: Boolean) {
         isPlaying = playing
-        centerPlayBtn.text = if (playing) "⏸" else "▶"
+        centerPlayBtn.icon = if (playing) PlayerIconView.Icon.PAUSE else PlayerIconView.Icon.PLAY
     }
 
     fun updateProgress(positionMs: Long, durationMs: Long, bufferedMs: Long) {
@@ -239,7 +257,7 @@ class VodControllerView(
 
     private fun toggleMute() {
         isMuted = !isMuted
-        muteBtn.text = if (isMuted) "🔇" else "🔊"
+        muteBtn.icon = if (isMuted) PlayerIconView.Icon.MUTED else PlayerIconView.Icon.VOLUME
         onMuteToggle(isMuted)
         show()
     }
@@ -299,15 +317,21 @@ class VodControllerView(
         autoHideRunnable = null
     }
 
-    private fun makeBtn(label: String, onClick: () -> Unit): TextView {
-        return TextView(context).apply {
-            text = label
-            setTextColor(Color.WHITE)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
-            setPadding(dp(12), dp(6), dp(12), dp(6))
+    private fun makeIconBtn(icon: PlayerIconView.Icon, onClick: () -> Unit): PlayerIconView {
+        return PlayerIconView(context, icon).apply {
             setOnClickListener { onClick(); show() }
         }
     }
+
+    private fun topGradient() = GradientDrawable(
+        GradientDrawable.Orientation.TOP_BOTTOM,
+        intArrayOf(0xB8000000.toInt(), 0x00000000)
+    )
+
+    private fun bottomGradient() = GradientDrawable(
+        GradientDrawable.Orientation.TOP_BOTTOM,
+        intArrayOf(0x00000000, 0xCC000000.toInt())
+    )
 
     private fun dp(v: Int): Int {
         return TypedValue.applyDimension(
