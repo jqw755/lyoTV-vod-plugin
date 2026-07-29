@@ -45,6 +45,8 @@ dependencies {
     api project(':player')
     // 源解析链路必需：simple-xml（Result/Vod/Class 的 @Root/@Element XML 解析）
     implementation libs.simple.xml
+    // quickjs 的 drpy HTML 解析函数在 fat AAR 运行时需要 Jsoup。
+    implementation libs.jsoup
     // gson / okhttp / guava 由 catvod 的 api 传递暴露，显式声明以防被裁剪
     implementation libs.gson
     implementation(libs.bundles.okhttp) {
@@ -131,6 +133,7 @@ tasks.register('fatAar') {
                 'com.squareup.okio',        // okio（核心本体 exclude）
                 'com.google.guava',         // guava / failureaccess（listenablefuture exclude）
                 'org.simpleframework',      // simple-xml
+                'org.jsoup',                // drpy JS 的 pdfh/pdfa/pd HTML 解析
                 'org.brotli',               // brotli dec
                 'com.github.thegrizzlylabs',// sardine
                 'com.hierynomus',           // smbj

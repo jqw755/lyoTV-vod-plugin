@@ -1,21 +1,21 @@
 package com.lyo.media3.player.player
 
-import android.app.Activity
+import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
 import android.content.Context
-import android.content.res.Configuration
 import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.TextureView
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
-import java.util.Locale
+import java.math.BigDecimal
 
 /**
  * 自定义 PlayerView 容器。
@@ -74,22 +74,30 @@ class LyoPlayerView @JvmOverloads constructor(
 
     private val speedHintView: TextView = TextView(context).apply {
         setTextColor(Color.WHITE)
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
         gravity = Gravity.CENTER
-        setPadding(dp(16), dp(9), dp(16), dp(9))
-        background = GradientDrawable().apply {
-            setColor(0xB8000000.toInt())
-            cornerRadius = dp(8).toFloat()
+        includeFontPadding = false
+        setShadowLayer(dp(2).toFloat(), 0f, dp(1).toFloat(), 0xCC000000.toInt())
+        val speedIcon = resources.getIdentifier("lyo_ic_speed", "drawable", context.packageName)
+        if (speedIcon != 0) {
+            val drawable = resources.getDrawable(speedIcon, context.theme).apply {
+                setBounds(0, 0, dp(16), dp(16))
+            }
+            setCompoundDrawablesRelative(null, null, drawable, null)
         }
+        compoundDrawablePadding = dp(3)
         visibility = View.GONE
         isClickable = false
         isFocusable = false
         layoutParams = LayoutParams(
             LayoutParams.WRAP_CONTENT,
             LayoutParams.WRAP_CONTENT,
-            Gravity.CENTER,
-        )
+            Gravity.TOP or Gravity.CENTER_HORIZONTAL,
+        ).apply {
+            topMargin = dp(14)
+        }
     }
+    private var speedHintAnimator: ObjectAnimator? = null
 
     init {
         addView(textureView)
@@ -113,13 +121,35 @@ class LyoPlayerView @JvmOverloads constructor(
     }
 
     fun showLongPressSpeedHint(speed: Float) {
-        speedHintView.text = String.format(Locale.US, "%.1fx 倍速播放", speed)
+        speedHintView.text = "${BigDecimal(speed.toString()).stripTrailingZeros().toPlainString()}x"
         speedHintView.visibility = View.VISIBLE
         speedHintView.bringToFront()
+        speedHintAnimator?.cancel()
+        speedHintView.translationX = 0f
+        speedHintAnimator = ObjectAnimator.ofFloat(
+            speedHintView,
+            View.TRANSLATION_X,
+            0f,
+            dp(10).toFloat(),
+            0f,
+        ).apply {
+            duration = 900L
+            repeatCount = ValueAnimator.INFINITE
+            interpolator = AccelerateDecelerateInterpolator()
+            start()
+        }
     }
 
     fun hideLongPressSpeedHint() {
+        speedHintAnimator?.cancel()
+        speedHintAnimator = null
+        speedHintView.translationX = 0f
         speedHintView.visibility = View.GONE
+    }
+
+    override fun onDetachedFromWindow() {
+        hideLongPressSpeedHint()
+        super.onDetachedFromWindow()
     }
 
     fun showShutter() {

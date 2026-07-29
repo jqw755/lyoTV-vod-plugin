@@ -13,7 +13,7 @@ import android.widget.ImageView
 class PlayerIconView(
     context: Context,
     icon: Icon,
-    iconDp: Int = 24,
+    iconDp: Int = 18,
 ) : ImageView(context) {
 
     enum class Icon { BACK, PLAY, PAUSE, PREVIOUS, NEXT, VOLUME, MUTED, FULLSCREEN, EXIT_FULLSCREEN }

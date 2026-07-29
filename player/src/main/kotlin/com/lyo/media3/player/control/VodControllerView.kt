@@ -14,6 +14,7 @@ import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.TextView
 import com.lyo.media3.player.player.LyoPlayerView
+import java.math.BigDecimal
 import java.util.Locale
 
 /**
@@ -85,19 +86,22 @@ class VodControllerView(
         }
         titleText = TextView(context).apply {
             setTextColor(Color.WHITE)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 17f)
             maxLines = 1
             ellipsize = android.text.TextUtils.TruncateAt.END
             layoutParams = LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f)
         }
-        backBtn = makeIconBtn(PlayerIconView.Icon.BACK) {
-            if (isFullscreen) onFullscreenToggle(false) else onBack()
+        backBtn = PlayerIconView(context, PlayerIconView.Icon.BACK, 16).apply {
+            setOnClickListener {
+                if (isFullscreen) onFullscreenToggle(false) else onBack()
+                show()
+            }
         }
         topBar.addView(backBtn)
         topBar.addView(titleText)
 
         // 中央播放按钮：只显示图标，不添加圆形/半透明遮罩
-        centerPlayBtn = PlayerIconView(context, PlayerIconView.Icon.PLAY, 46).apply {
+        centerPlayBtn = PlayerIconView(context, PlayerIconView.Icon.PLAY, 40).apply {
             layoutParams = LayoutParams(dp(72), dp(72), Gravity.CENTER)
             setOnClickListener {
                 if (isPlaying) onPauseToggle() else onPlayToggle()
@@ -146,7 +150,7 @@ class VodControllerView(
         speedBtn = TextView(context).apply {
             setTextColor(Color.WHITE)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
-            text = "1.0x"
+            text = "1x"
             val speedIcon = resolvePlayerDrawable(context, "lyo_ic_speed")
             if (speedIcon != 0) {
                 val drawable = resources.getDrawable(speedIcon, context.theme).apply {
@@ -215,7 +219,7 @@ class VodControllerView(
 
     fun setSpeed(speed: Float) {
         currentSpeed = speed
-        speedBtn.text = String.format(Locale.US, "%.1fx", speed)
+        speedBtn.text = formatSpeed(speed)
     }
 
     fun setPlaying(playing: Boolean) {
@@ -275,19 +279,19 @@ class VodControllerView(
         val popup = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(0xCC000000.toInt())
-            setPadding(dp(12), dp(12), dp(12), dp(12))
+            setPadding(dp(12), dp(6), dp(12), dp(6))
             layoutParams = LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.CENTER)
         }
         speedOptions.forEach { s ->
             val tv = TextView(context).apply {
                 setTextColor(if (s == currentSpeed) 0xFFfe8027.toInt() else Color.WHITE)
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
-                text = String.format(Locale.US, "%.1fx", s)
-                setPadding(dp(12), dp(10), dp(12), dp(10))
+                text = formatSpeed(s)
+                setPadding(dp(12), dp(6), dp(12), dp(6))
                 setOnClickListener {
                     currentSpeed = s
                     onSpeedChange(s)
-                    speedBtn.text = String.format(Locale.US, "%.1fx", s)
+                    speedBtn.text = formatSpeed(s)
                     dismissSpeedPopup()
                     show()
                 }
@@ -346,5 +350,9 @@ class VodControllerView(
         val s = totalSec % 60
         return if (h > 0) String.format(Locale.US, "%02d:%02d:%02d", h, m, s)
         else String.format(Locale.US, "%02d:%02d", m, s)
+    }
+
+    private fun formatSpeed(speed: Float): String {
+        return BigDecimal(speed.toString()).stripTrailingZeros().toPlainString() + "x"
     }
 }

@@ -74,7 +74,7 @@ class LiveControllerView(
         }
         titleText = TextView(context).apply {
             setTextColor(Color.WHITE)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
             maxLines = 1
             ellipsize = android.text.TextUtils.TruncateAt.END
             layoutParams = LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f)
@@ -84,8 +84,11 @@ class LiveControllerView(
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
             setPadding(dp(8), 0, dp(8), 0)
         }
-        backBtn = makeIconBtn(PlayerIconView.Icon.BACK) {
-            if (isFullscreen) onFullscreenToggle(false) else onBack()
+        backBtn = PlayerIconView(context, PlayerIconView.Icon.BACK, 16).apply {
+            setOnClickListener {
+                if (isFullscreen) onFullscreenToggle(false) else onBack()
+                show()
+            }
         }
         muteBtn = makeIconBtn(PlayerIconView.Icon.VOLUME) { toggleMute() }
         fullscreenBtn = makeIconBtn(PlayerIconView.Icon.FULLSCREEN) { toggleFullscreen() }
@@ -94,7 +97,7 @@ class LiveControllerView(
         topBar.addView(lineBadge)
 
         // 中央播放按钮：纯矢量图标，无半透明按钮底
-        centerPlayBtn = PlayerIconView(context, PlayerIconView.Icon.PLAY, 46).apply {
+        centerPlayBtn = PlayerIconView(context, PlayerIconView.Icon.PLAY, 40).apply {
             layoutParams = LayoutParams(dp(72), dp(72), Gravity.CENTER)
             setOnClickListener {
                 if (isPlaying) onPauseToggle() else onPlayToggle()

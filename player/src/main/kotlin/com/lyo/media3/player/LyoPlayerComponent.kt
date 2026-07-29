@@ -449,8 +449,8 @@ class LyoPlayerComponent(
                             lastUserSpeed = s
                             manager.setSpeed(s)
                         },
-                        onPrevEpisode = { fireEvent("prevEpisode", mapOf("detail" to emptyMap<String, Any>())) },
-                        onNextEpisode = { fireEvent("nextEpisode", mapOf("detail" to emptyMap<String, Any>())) },
+                        onPrevEpisode = { fireEvent("prevepisode", mapOf("detail" to emptyMap<String, Any>())) },
+                        onNextEpisode = { fireEvent("nextepisode", mapOf("detail" to emptyMap<String, Any>())) },
                         onMuteToggle = { m ->
                             manager.setMuted(m)
                             fireMuteChange(m)
