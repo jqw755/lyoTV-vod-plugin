@@ -68,7 +68,7 @@ class LiveControllerView(
         topBar = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(12), dp(8), dp(12), dp(8))
+            setPadding(dp(3), dp(6), dp(21), dp(6))
             background = topGradient()
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.TOP)
         }
@@ -84,7 +84,7 @@ class LiveControllerView(
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
             setPadding(dp(8), 0, dp(8), 0)
         }
-        backBtn = PlayerIconView(context, PlayerIconView.Icon.BACK, 16).apply {
+        backBtn = PlayerIconView(context, PlayerIconView.Icon.BACK, 24).apply {
             setOnClickListener {
                 if (isFullscreen) onFullscreenToggle(false) else onBack()
                 show()
@@ -97,7 +97,7 @@ class LiveControllerView(
         topBar.addView(lineBadge)
 
         // 中央播放按钮：纯矢量图标，无半透明按钮底
-        centerPlayBtn = PlayerIconView(context, PlayerIconView.Icon.PLAY, 40).apply {
+        centerPlayBtn = PlayerIconView(context, PlayerIconView.Icon.PLAY, 42).apply {
             layoutParams = LayoutParams(dp(72), dp(72), Gravity.CENTER)
             setOnClickListener {
                 if (isPlaying) onPauseToggle() else onPlayToggle()
@@ -109,7 +109,7 @@ class LiveControllerView(
         bottomBar = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(12), dp(6), dp(12), dp(6))
+            setPadding(dp(3), dp(4), dp(21), 0)
             background = bottomGradient()
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.BOTTOM)
         }
@@ -243,7 +243,14 @@ class LiveControllerView(
     }
 
     private fun makeIconBtn(icon: PlayerIconView.Icon, onClick: () -> Unit): PlayerIconView {
-        return PlayerIconView(context, icon).apply {
+        val iconDp = when (icon) {
+            PlayerIconView.Icon.VOLUME -> 25
+            PlayerIconView.Icon.MUTED -> 26
+            PlayerIconView.Icon.FULLSCREEN,
+            PlayerIconView.Icon.EXIT_FULLSCREEN -> 22
+            else -> 18
+        }
+        return PlayerIconView(context, icon, iconDp).apply {
             setOnClickListener { onClick(); show() }
         }
     }

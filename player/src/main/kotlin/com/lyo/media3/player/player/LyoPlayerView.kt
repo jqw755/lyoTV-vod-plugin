@@ -3,7 +3,9 @@ package com.lyo.media3.player.player
 import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
 import android.content.Context
+import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.Gravity
@@ -12,8 +14,10 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.FrameLayout
+import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.media3.common.Player
+import androidx.media3.common.VideoSize
 import androidx.media3.exoplayer.ExoPlayer
 import java.math.BigDecimal
 
@@ -51,6 +55,20 @@ class LyoPlayerView @JvmOverloads constructor(
     private val textureView: TextureView = TextureView(context).apply {
         layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT, Gravity.CENTER)
     }
+    private var attachedPlayer: Player? = null
+    private var videoAspectRatio = 0f
+    private val videoSizeListener = object : Player.Listener {
+        override fun onVideoSizeChanged(videoSize: VideoSize) {
+            val width = videoSize.width
+            val height = videoSize.height
+            videoAspectRatio = if (width > 0 && height > 0) {
+                width * videoSize.pixelWidthHeightRatio / height
+            } else {
+                0f
+            }
+            updateTextureViewSize()
+        }
+    }
 
     /** 换源到首帧之间遮黑，避免显示上一条流的最后一帧。 */
     private val shutterView: View = View(context).apply {
@@ -81,7 +99,7 @@ class LyoPlayerView @JvmOverloads constructor(
         val speedIcon = resources.getIdentifier("lyo_ic_speed", "drawable", context.packageName)
         if (speedIcon != 0) {
             val drawable = resources.getDrawable(speedIcon, context.theme).apply {
-                setBounds(0, 0, dp(16), dp(16))
+                setBounds(0, 0, dp(20), dp(20))
             }
             setCompoundDrawablesRelative(null, null, drawable, null)
         }
@@ -97,23 +115,89 @@ class LyoPlayerView @JvmOverloads constructor(
             topMargin = dp(14)
         }
     }
+    private val bufferingView: ProgressBar = ProgressBar(context).apply {
+        indeterminateTintList = ColorStateList.valueOf(Color.WHITE)
+        visibility = View.GONE
+        isClickable = false
+        isFocusable = false
+        layoutParams = LayoutParams(dp(42), dp(42), Gravity.CENTER)
+    }
     private var speedHintAnimator: ObjectAnimator? = null
+
+    private val seekHintView: TextView = TextView(context).apply {
+        setTextColor(Color.WHITE)
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+        gravity = Gravity.CENTER
+        includeFontPadding = false
+        setPadding(dp(18), dp(10), dp(18), dp(10))
+        background = GradientDrawable().apply {
+            setColor(0x99000000.toInt())
+            cornerRadius = dp(100).toFloat()
+        }
+        visibility = View.GONE
+        isClickable = false
+        isFocusable = false
+        layoutParams = LayoutParams(
+            LayoutParams.WRAP_CONTENT,
+            LayoutParams.WRAP_CONTENT,
+            Gravity.CENTER,
+        )
+    }
 
     init {
         addView(textureView)
         addView(shutterView)
         addView(gestureTouchView)
+        addView(bufferingView)
         addView(speedHintView)
+        addView(seekHintView)
         setBackgroundColor(0xFF000000.toInt())
     }
 
     /** 把 ExoPlayer 连接到实际的视频输出面。 */
     fun attachPlayer(player: Player?) {
+        if (attachedPlayer !== player) {
+            attachedPlayer?.removeListener(videoSizeListener)
+            attachedPlayer = player
+            player?.addListener(videoSizeListener)
+        }
+        player?.videoSize?.let(videoSizeListener::onVideoSizeChanged)
         (player as? ExoPlayer)?.setVideoTextureView(textureView)
     }
 
     fun detachPlayer(player: Player?) {
         (player as? ExoPlayer)?.clearVideoTextureView(textureView)
+        if (attachedPlayer === player) {
+            player?.removeListener(videoSizeListener)
+            attachedPlayer = null
+            videoAspectRatio = 0f
+        }
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        updateTextureViewSize(w, h)
+    }
+
+    /**
+     * TextureView 默认 MATCH_PARENT 会把视频强制拉伸到容器比例。
+     * 按视频实际宽高比做 aspect-fit，剩余区域显示黑边，不裁剪也不拉伸人物。
+     */
+    private fun updateTextureViewSize(containerWidth: Int = width, containerHeight: Int = height) {
+        if (containerWidth <= 0 || containerHeight <= 0 || videoAspectRatio <= 0f) return
+        val containerAspectRatio = containerWidth.toFloat() / containerHeight
+        val targetWidth: Int
+        val targetHeight: Int
+        if (videoAspectRatio > containerAspectRatio) {
+            targetWidth = containerWidth
+            targetHeight = (containerWidth / videoAspectRatio).toInt().coerceAtLeast(1)
+        } else {
+            targetHeight = containerHeight
+            targetWidth = (containerHeight * videoAspectRatio).toInt().coerceAtLeast(1)
+        }
+        val params = textureView.layoutParams as? LayoutParams
+        if (params?.width == targetWidth && params.height == targetHeight) return
+        textureView.layoutParams = LayoutParams(targetWidth, targetHeight, Gravity.CENTER)
     }
 
     fun setPlayerGestureTouchListener(listener: OnTouchListener) {
@@ -147,8 +231,48 @@ class LyoPlayerView @JvmOverloads constructor(
         speedHintView.visibility = View.GONE
     }
 
+    fun showSeekHint(deltaMs: Long, targetMs: Long) {
+        val action = if (deltaMs >= 0L) "快进到" else "快退到"
+        seekHintView.text = "$action ${formatDuration(targetMs)}"
+        seekHintView.layoutParams = LayoutParams(
+            LayoutParams.WRAP_CONTENT,
+            LayoutParams.WRAP_CONTENT,
+            Gravity.TOP or Gravity.CENTER_HORIZONTAL,
+        ).apply {
+            topMargin = dp(14)
+        }
+        seekHintView.visibility = View.VISIBLE
+        seekHintView.bringToFront()
+    }
+
+    fun hideSeekHint() {
+        seekHintView.visibility = View.GONE
+    }
+
+    fun showBuffering(show: Boolean) {
+        bufferingView.visibility = if (show) View.VISIBLE else View.GONE
+        if (show) bufferingView.bringToFront()
+    }
+
+    fun showVerticalGestureHint(label: String, percent: Int) {
+        seekHintView.text = "$label ${percent.coerceIn(0, 100)}%"
+        seekHintView.layoutParams = LayoutParams(
+            LayoutParams.WRAP_CONTENT,
+            LayoutParams.WRAP_CONTENT,
+            Gravity.CENTER,
+        )
+        seekHintView.visibility = View.VISIBLE
+        seekHintView.bringToFront()
+    }
+
+    fun hideVerticalGestureHint() {
+        hideSeekHint()
+    }
+
     override fun onDetachedFromWindow() {
+        showBuffering(false)
         hideLongPressSpeedHint()
+        hideSeekHint()
         super.onDetachedFromWindow()
     }
 
@@ -161,18 +285,21 @@ class LyoPlayerView @JvmOverloads constructor(
     }
 
     /** 普通模式：计算 16:9 高度并应用到自身 */
-    fun applyEmbedSize() {
-        val w = resources.displayMetrics.widthPixels
-        val h = (w * 9f / 16f).toInt()
-        layoutParams = layoutParams?.apply {
-            width = ViewGroup.LayoutParams.MATCH_PARENT
-            height = h
-        } ?: LayoutParams(LayoutParams.MATCH_PARENT, h)
-    }
-
     private fun dp(value: Int): Int = TypedValue.applyDimension(
         TypedValue.COMPLEX_UNIT_DIP,
         value.toFloat(),
         resources.displayMetrics,
     ).toInt()
+
+    private fun formatDuration(ms: Long): String {
+        val totalSeconds = (ms.coerceAtLeast(0L) / 1000L)
+        val hours = totalSeconds / 3600L
+        val minutes = (totalSeconds % 3600L) / 60L
+        val seconds = totalSeconds % 60L
+        return if (hours > 0L) {
+            String.format("%d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            String.format("%02d:%02d", minutes, seconds)
+        }
+    }
 }

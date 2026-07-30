@@ -97,6 +97,7 @@ public class VodModule extends UniModule {
                 com.alibaba.fastjson.JSONObject obj = new com.alibaba.fastjson.JSONObject();
                 obj.put("key", s.getKey());
                 obj.put("name", s.getName());
+                obj.put("indexs", s.getIndexs());
                 arr.add(obj);
             }
             com.alibaba.fastjson.JSONObject ret = new com.alibaba.fastjson.JSONObject();

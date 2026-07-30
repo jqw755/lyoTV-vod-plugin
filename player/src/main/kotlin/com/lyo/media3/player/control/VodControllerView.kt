@@ -2,7 +2,10 @@ package com.lyo.media3.player.control
 
 import android.content.Context
 import android.graphics.Color
+import android.graphics.PorterDuff
+import android.graphics.drawable.ClipDrawable
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
 import android.os.Handler
 import android.os.Looper
 import android.util.TypedValue
@@ -42,6 +45,8 @@ class VodControllerView(
     private val onNextEpisode: () -> Unit,
     private val onMuteToggle: (Boolean) -> Unit,
     private val onFullscreenToggle: (Boolean) -> Unit,
+    private val onRotate: () -> Unit,
+    private val onLockChange: (Boolean) -> Unit,
     private val onBack: () -> Unit,
 ) : FrameLayout(context) {
 
@@ -52,7 +57,10 @@ class VodControllerView(
     private var isPlaying = false
     private var isMuted = false
     private var isFullscreen = false
+    private var isLocked = false
     private var currentSpeed = 1f
+    private var isTrackingProgress = false
+    private var progressDurationMs = 0L
 
     // 控件
     private val centerPlayBtn: PlayerIconView
@@ -67,6 +75,9 @@ class VodControllerView(
     private val muteBtn: PlayerIconView
     private val fullscreenBtn: PlayerIconView
     private val backBtn: PlayerIconView
+    private val rotateBtn: PlayerIconView
+    private val lockBtn: PlayerIconView
+    private val centerControls: LinearLayout
     private val titleText: TextView
 
     private val speedOptions = floatArrayOf(1f, 1.5f, 1.75f, 2f, 3f, 4f)
@@ -80,7 +91,7 @@ class VodControllerView(
         topBar = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(12), dp(8), dp(12), dp(8))
+            setPadding(dp(3), dp(6), dp(21), dp(6))
             background = topGradient()
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.TOP)
         }
@@ -91,7 +102,7 @@ class VodControllerView(
             ellipsize = android.text.TextUtils.TruncateAt.END
             layoutParams = LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f)
         }
-        backBtn = PlayerIconView(context, PlayerIconView.Icon.BACK, 16).apply {
+        backBtn = PlayerIconView(context, PlayerIconView.Icon.BACK, 24).apply {
             setOnClickListener {
                 if (isFullscreen) onFullscreenToggle(false) else onBack()
                 show()
@@ -101,8 +112,7 @@ class VodControllerView(
         topBar.addView(titleText)
 
         // 中央播放按钮：只显示图标，不添加圆形/半透明遮罩
-        centerPlayBtn = PlayerIconView(context, PlayerIconView.Icon.PLAY, 40).apply {
-            layoutParams = LayoutParams(dp(72), dp(72), Gravity.CENTER)
+        centerPlayBtn = PlayerIconView(context, PlayerIconView.Icon.PLAY, 42).apply {
             setOnClickListener {
                 if (isPlaying) onPauseToggle() else onPlayToggle()
                 show()
@@ -112,7 +122,8 @@ class VodControllerView(
         // 底部栏：上方进度，下方常用操作
         bottomBar = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(12), dp(4), dp(8), dp(6))
+            // 左右使用相同边距；全屏安全区由外层容器统一补偿，避免竖屏操作栏偏左。
+            setPadding(dp(8), dp(4), dp(8), 0)
             background = bottomGradient()
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.BOTTOM)
         }
@@ -120,30 +131,84 @@ class VodControllerView(
         nextBtn = makeIconBtn(PlayerIconView.Icon.NEXT) { onNextEpisode() }
         muteBtn = makeIconBtn(PlayerIconView.Icon.VOLUME) { toggleMute() }
         fullscreenBtn = makeIconBtn(PlayerIconView.Icon.FULLSCREEN) { toggleFullscreen() }
+        rotateBtn = makeIconBtn(PlayerIconView.Icon.ROTATE) { onRotate() }
+        lockBtn = makeIconBtn(PlayerIconView.Icon.UNLOCK) { toggleLock() }
+        centerControls = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            layoutParams = LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.CENTER)
+            addView(prevBtn)
+            addView(centerPlayBtn, LinearLayout.LayoutParams(dp(72), dp(72)).apply {
+                marginStart = dp(40)
+                marginEnd = dp(40)
+            })
+            addView(nextBtn)
+        }
         currentTimeText = TextView(context).apply {
             setTextColor(Color.WHITE)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
             text = "00:00"
             setPadding(dp(4), 0, dp(4), 0)
         }
+        val trackHeight = dp(2)
+        fun trackDrawable(color: Int): ClipDrawable {
+            val shape = GradientDrawable().apply {
+                setColor(color)
+                cornerRadius = trackHeight / 2f
+            }
+            return ClipDrawable(shape, Gravity.LEFT, ClipDrawable.HORIZONTAL)
+        }
+        val progressLayer = trackDrawable(Color.WHITE)
+        val secondaryLayer = trackDrawable(Color.parseColor("#80FFFFFF"))
+        val backgroundLayer = GradientDrawable().apply {
+            setColor(Color.parseColor("#33FFFFFF"))
+            cornerRadius = trackHeight / 2f
+        }
+        val progressDrawable = LayerDrawable(arrayOf(backgroundLayer, secondaryLayer, progressLayer)).apply {
+            setId(0, android.R.id.background)
+            setId(1, android.R.id.secondaryProgress)
+            setId(2, android.R.id.progress)
+        }
+        val thumbDiameter = dp(14)
+        val thumbDrawable = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(Color.WHITE)
+            setSize(thumbDiameter, thumbDiameter)
+        }
         seekBar = SeekBar(context).apply {
-            layoutParams = LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f)
+            // 14dp 圆点只需要 16dp 布局高度；避免把整个底栏向播放器中央顶起。
+            layoutParams = LinearLayout.LayoutParams(0, dp(16), 1f)
             max = 1000
+            setProgressDrawable(progressDrawable)
+            maxHeight = trackHeight
+            isEnabled = false
+            thumb = thumbDrawable
+            thumbOffset = thumbDiameter / 2
             setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(sb: SeekBar?, p: Int, fromUser: Boolean) {}
-                override fun onStartTrackingTouch(sb: SeekBar?) { cancelAutoHide() }
+                override fun onProgressChanged(sb: SeekBar?, p: Int, fromUser: Boolean) {
+                    if (!fromUser || progressDurationMs <= 0L) return
+                    currentTimeText.text = formatTime(progressToPosition(p))
+                }
+
+                override fun onStartTrackingTouch(sb: SeekBar?) {
+                    isTrackingProgress = true
+                    cancelAutoHide()
+                }
+
                 override fun onStopTrackingTouch(sb: SeekBar?) {
-                    val p = sb?.progress ?: 0
-                    val ratio = p.toFloat() / 1000f
-                    val target = (ratio * (sb?.tag as? Long ?: 0L)).toLong()
-                    onSeekTo(target)
+                    isTrackingProgress = false
+                    if (progressDurationMs > 0L) {
+                        val target = progressToPosition(sb?.progress ?: 0)
+                        currentTimeText.text = formatTime(target)
+                        onSeekTo(target)
+                    }
                     show()
                 }
             })
         }
         durationText = TextView(context).apply {
             setTextColor(Color.WHITE)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
             text = "00:00"
             setPadding(dp(4), 0, dp(4), 0)
         }
@@ -154,19 +219,21 @@ class VodControllerView(
             val speedIcon = resolvePlayerDrawable(context, "lyo_ic_speed")
             if (speedIcon != 0) {
                 val drawable = resources.getDrawable(speedIcon, context.theme).apply {
-                    setBounds(0, 0, dp(24), dp(24))
+                    setBounds(0, 0, dp(33), dp(33))
                 }
                 setCompoundDrawablesRelative(drawable, null, null, null)
             }
             compoundDrawablePadding = dp(4)
             gravity = Gravity.CENTER_VERTICAL
             includeFontPadding = false
-            setPadding(dp(12), dp(6), dp(12), dp(6))
+            // 竖向 padding 会把操作行撑高，并连带把上方进度条顶向播放器中央。
+            setPadding(dp(12), 0, dp(12), 0)
             setOnClickListener { toggleSpeedPopup() }
         }
         val progressRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
+            translationY = dp(9).toFloat()
             addView(currentTimeText)
             addView(seekBar)
             addView(durationText)
@@ -174,8 +241,7 @@ class VodControllerView(
         val actionRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            addView(prevBtn)
-            addView(nextBtn)
+            translationY = dp(10).toFloat()
             addView(View(context), LinearLayout.LayoutParams(0, 1, 1f))
             addView(speedBtn)
             addView(muteBtn)
@@ -185,8 +251,19 @@ class VodControllerView(
         bottomBar.addView(actionRow)
 
         addView(topBar)
-        addView(centerPlayBtn)
+        addView(centerControls)
         addView(bottomBar)
+        addView(LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            layoutParams = LayoutParams(
+                LayoutParams.WRAP_CONTENT,
+                LayoutParams.WRAP_CONTENT,
+                Gravity.END or Gravity.CENTER_VERTICAL,
+            ).apply { marginEnd = dp(4) }
+            addView(lockBtn)
+            addView(rotateBtn)
+        })
 
         // 默认隐藏，等首次播放或用户单击后再显示
         visibility = View.GONE
@@ -214,7 +291,12 @@ class VodControllerView(
 
     fun setFullscreen(fs: Boolean) {
         isFullscreen = fs
+        if (!fs && isLocked) {
+            isLocked = false
+            onLockChange(false)
+        }
         fullscreenBtn.icon = if (fs) PlayerIconView.Icon.EXIT_FULLSCREEN else PlayerIconView.Icon.FULLSCREEN
+        applyControlVisibility()
     }
 
     fun setSpeed(speed: Float) {
@@ -227,24 +309,42 @@ class VodControllerView(
         centerPlayBtn.icon = if (playing) PlayerIconView.Icon.PAUSE else PlayerIconView.Icon.PLAY
     }
 
+    fun showLoading(show: Boolean) {
+        centerPlayBtn.visibility = if (show) View.GONE else View.VISIBLE
+    }
+
     fun updateProgress(positionMs: Long, durationMs: Long, bufferedMs: Long) {
         if (durationMs <= 0) {
-            seekBar.tag = 0L
+            resetProgress()
             return
         }
-        seekBar.tag = durationMs
-        val posRatio = (positionMs.toFloat() / durationMs).coerceIn(0f, 1f)
-        seekBar.progress = (posRatio * 1000).toInt()
-        val bufRatio = (bufferedMs.toFloat() / durationMs).coerceIn(0f, 1f)
-        seekBar.secondaryProgress = (bufRatio * 1000).toInt()
-        currentTimeText.text = formatTime(positionMs)
+        progressDurationMs = durationMs
+        seekBar.isEnabled = true
+        if (!isTrackingProgress) {
+            val safePosition = positionMs.coerceIn(0L, durationMs)
+            val safeBuffered = bufferedMs.coerceIn(safePosition, durationMs)
+            seekBar.progress = positionToProgress(safePosition, durationMs)
+            seekBar.secondaryProgress = positionToProgress(safeBuffered, durationMs)
+            currentTimeText.text = formatTime(safePosition)
+        }
         durationText.text = formatTime(durationMs)
+    }
+
+    fun resetProgress() {
+        progressDurationMs = 0L
+        isTrackingProgress = false
+        seekBar.isEnabled = false
+        seekBar.progress = 0
+        seekBar.secondaryProgress = 0
+        currentTimeText.text = "00:00"
+        durationText.text = "00:00"
     }
 
     /** 显示控制层；4s 后自动隐藏 */
     fun show() {
         visibility = View.VISIBLE
         isShowing = true
+        applyControlVisibility()
         scheduleAutoHide()
     }
 
@@ -268,6 +368,23 @@ class VodControllerView(
 
     private fun toggleFullscreen() {
         onFullscreenToggle(!isFullscreen)
+    }
+
+    private fun toggleLock() {
+        if (!isFullscreen) return
+        isLocked = !isLocked
+        lockBtn.icon = if (isLocked) PlayerIconView.Icon.LOCK else PlayerIconView.Icon.UNLOCK
+        onLockChange(isLocked)
+        applyControlVisibility()
+        show()
+    }
+
+    private fun applyControlVisibility() {
+        rotateBtn.visibility = if (isFullscreen && !isLocked) View.VISIBLE else View.GONE
+        lockBtn.visibility = if (isFullscreen) View.VISIBLE else View.GONE
+        topBar.visibility = if (isLocked) View.GONE else View.VISIBLE
+        centerControls.visibility = if (isLocked) View.GONE else View.VISIBLE
+        bottomBar.visibility = if (isLocked) View.GONE else View.VISIBLE
     }
 
     private fun toggleSpeedPopup() {
@@ -322,7 +439,19 @@ class VodControllerView(
     }
 
     private fun makeIconBtn(icon: PlayerIconView.Icon, onClick: () -> Unit): PlayerIconView {
-        return PlayerIconView(context, icon).apply {
+        val iconDp = when (icon) {
+            PlayerIconView.Icon.PREVIOUS,
+            PlayerIconView.Icon.NEXT -> 20
+            PlayerIconView.Icon.VOLUME -> 25
+            PlayerIconView.Icon.MUTED -> 26
+            PlayerIconView.Icon.FULLSCREEN,
+            PlayerIconView.Icon.EXIT_FULLSCREEN -> 22
+            PlayerIconView.Icon.LOCK,
+            PlayerIconView.Icon.UNLOCK,
+            PlayerIconView.Icon.ROTATE -> 24
+            else -> 18
+        }
+        return PlayerIconView(context, icon, iconDp).apply {
             setOnClickListener { onClick(); show() }
         }
     }
@@ -350,6 +479,19 @@ class VodControllerView(
         val s = totalSec % 60
         return if (h > 0) String.format(Locale.US, "%02d:%02d:%02d", h, m, s)
         else String.format(Locale.US, "%02d:%02d", m, s)
+    }
+
+    private fun progressToPosition(progress: Int): Long {
+        if (progressDurationMs <= 0L || seekBar.max <= 0) return 0L
+        return (progress.coerceIn(0, seekBar.max).toLong() * progressDurationMs / seekBar.max)
+            .coerceIn(0L, progressDurationMs)
+    }
+
+    private fun positionToProgress(positionMs: Long, durationMs: Long): Int {
+        if (durationMs <= 0L) return 0
+        return (positionMs.coerceIn(0L, durationMs) * seekBar.max / durationMs)
+            .coerceIn(0L, seekBar.max.toLong())
+            .toInt()
     }
 
     private fun formatSpeed(speed: Float): String {

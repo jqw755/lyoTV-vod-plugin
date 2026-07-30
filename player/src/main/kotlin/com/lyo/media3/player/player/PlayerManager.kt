@@ -174,7 +174,7 @@ class PlayerManager(
 
         // 速度（点播）
         if (config.mode == PlayerConfig.Mode.VOD) {
-            p.setPlaybackSpeed(config.speed.coerceIn(0.5f, 3f))
+            p.setPlaybackSpeed(config.speed.coerceIn(0.5f, 4f))
         }
 
         // 静音
@@ -221,7 +221,7 @@ class PlayerManager(
 
     fun setSpeed(speed: Float) {
         if (released) return
-        player?.setPlaybackSpeed(speed.coerceIn(0.5f, 3f))
+        player?.setPlaybackSpeed(speed.coerceIn(0.5f, 4f))
     }
 
     fun setMuted(muted: Boolean) {

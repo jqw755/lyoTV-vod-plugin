@@ -47,6 +47,8 @@ public class Vod implements Parcelable, Diffable<Vod> {
     private String siteName;
     @SerializedName("site_key")
     private String siteKey;
+    @SerializedName("site_index")
+    private Integer siteIndex;
     @Element(name = "note", required = false)
     @SerializedName("vod_remarks")
     private String vodRemarks;
@@ -259,6 +261,7 @@ public class Vod implements Parcelable, Diffable<Vod> {
         this.site = site;
         this.siteName = site == null ? "" : site.getName();
         this.siteKey = site == null ? "" : site.getKey();
+        this.siteIndex = site == null ? 0 : site.getIndexs();
     }
 
     public String getSiteName() {

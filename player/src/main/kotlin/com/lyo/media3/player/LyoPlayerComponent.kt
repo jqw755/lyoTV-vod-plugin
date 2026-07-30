@@ -1,9 +1,25 @@
 package com.lyo.media3.player
 
+import android.app.Activity
 import android.content.Context
+import android.content.ContextWrapper
+import android.content.pm.ActivityInfo
+import android.database.ContentObserver
+import android.media.AudioManager
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.provider.Settings
 import android.util.Log
+import android.util.TypedValue
+import android.view.Gravity
+import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
+import android.widget.FrameLayout
+import android.window.OnBackInvokedCallback
+import android.window.OnBackInvokedDispatcher
 import com.alibaba.fastjson.JSONObject
 import com.lyo.media3.player.control.GestureController
 import com.lyo.media3.player.control.LiveControllerView
@@ -55,15 +71,33 @@ class LyoPlayerComponent(
 
     /** 手势：双击快退 / 快进、长按临时倍速 */
     private var gesture: GestureController? = null
+    private var gestureSeekBasePositionMs: Long? = null
 
     /** 当前 mode（决定控制层渲染） */
     private var currentMode: PlayerConfig.Mode = PlayerConfig.Mode.VOD
 
     /** 当前是否全屏 */
     private var isFullscreen = false
+    private var isControlsLocked = false
+    private var fullscreenRotatedToPortrait = false
+    private var previousOrientation: Int? = null
+    private var previousSystemUiVisibility: Int? = null
+    private var hadFullscreenWindowFlag = false
+    private var embeddedParent: ViewGroup? = null
+    private var embeddedIndex = -1
+    private var embeddedLayoutParams: ViewGroup.LayoutParams? = null
+    private var fullscreenContainer: FrameLayout? = null
+    private var fullscreenBackCallback: OnBackInvokedCallback? = null
+
+    private var audioManager: AudioManager? = null
+    private var lastSystemVolume = 0
+    private var volumeObserver: ContentObserver? = null
 
     /** 用户上一次显式设置的 speed（用于长按临时倍速后恢复） */
     private var lastUserSpeed: Float = 1f
+    private var longPressSpeed: Float = 2f
+    /** 页面/用户暂停后禁止生命周期或重复属性下发擅自恢复播放。 */
+    private var playbackResumeBlocked = false
 
     /**
      * 累积的属性值。
@@ -85,9 +119,10 @@ class LyoPlayerComponent(
     // ===== 宿主 View 初始化 =====
 
     override fun initComponentHostView(context: Context): LyoPlayerView {
-        hostView = LyoPlayerView(context).also { view ->
-            view.applyEmbedSize()
-        }
+        // Host View 的 LayoutParams 必须由 nvue 实际父容器创建和管理。
+        // 这里若预先塞入 FrameLayout.LayoutParams，UniApp 父容器测量时会发生
+        // LayoutParams 类型转换崩溃。
+        hostView = LyoPlayerView(context)
 
         manager = PlayerManager(
             context = context,
@@ -96,6 +131,7 @@ class LyoPlayerComponent(
             onProgressListener = ::onProgress,
             onFirstFrameListener = ::onFirstFrame,
         )
+        registerSystemVolumeObserver(context)
         // 必须显式连接 ExoPlayer 与视频输出面；此前二者从未 attach，因而始终黑屏。
         hostView.attachPlayer(manager.getPlayer())
 
@@ -129,14 +165,62 @@ class LyoPlayerComponent(
                         fireLongPressSpeed(lastUserSpeed, false)
                     }
                 },
+                getLongPressSpeed = { longPressSpeed },
                 onDoubleTapTogglePlay = {
                     val isPlaying = manager.getState()["isPlaying"] == true
-                    if (isPlaying) manager.pause() else manager.play()
+                    if (isPlaying) pauseByUser() else playByUser()
                 },
                 onSingleTap = {
                     when (currentMode) {
                         PlayerConfig.Mode.VOD -> vodController?.toggleVisible()
                         PlayerConfig.Mode.LIVE -> liveController?.toggleVisible()
+                    }
+                },
+                canHorizontalSeek = {
+                    !isControlsLocked &&
+                    currentMode == PlayerConfig.Mode.VOD &&
+                        ((manager.getState()["duration"] as? Long) ?: 0L) > 0L
+                },
+                canVerticalAdjust = { !isControlsLocked },
+                onHorizontalSeekPreview = { deltaMs ->
+                    val state = manager.getState()
+                    val durationMs = (state["duration"] as? Long) ?: 0L
+                    if (durationMs > 0L) {
+                        val basePositionMs = gestureSeekBasePositionMs
+                            ?: ((state["position"] as? Long) ?: 0L).also {
+                                gestureSeekBasePositionMs = it
+                            }
+                        val targetMs = gestureSeekTarget(basePositionMs, deltaMs, durationMs)
+                        hostView.showSeekHint(deltaMs, targetMs)
+                    }
+                },
+                onHorizontalSeekEnd = { deltaMs ->
+                    val state = manager.getState()
+                    val durationMs = (state["duration"] as? Long) ?: 0L
+                    val basePositionMs = gestureSeekBasePositionMs
+                        ?: ((state["position"] as? Long) ?: 0L)
+                    if (durationMs > 0L) {
+                        val targetMs = gestureSeekTarget(basePositionMs, deltaMs, durationMs)
+                        seekVodTo(targetMs)
+                        // 不等待下一个 500ms 定时上报，确保松手后立即返回也能保存目标进度。
+                        val bufferedMs = (state["bufferedPosition"] as? Long) ?: targetMs
+                        onProgress(targetMs, durationMs, bufferedMs)
+                    }
+                    gestureSeekBasePositionMs = null
+                    hostView.hideSeekHint()
+                },
+                onHorizontalSeekCancel = {
+                    gestureSeekBasePositionMs = null
+                    hostView.hideSeekHint()
+                },
+                onVolumeAdjusted = { percent ->
+                    val muted = percent <= 0
+                    if (propMuted != muted) {
+                        propMuted = muted
+                        manager.setMuted(muted)
+                        vodController?.setMuted(muted)
+                        liveController?.setMuted(muted)
+                        fireMuteChange(muted)
                     }
                 },
             )
@@ -146,6 +230,21 @@ class LyoPlayerComponent(
     }
 
     // ===== 属性（@UniComponentProp，§7.1） =====
+
+    private fun gestureSeekTarget(baseMs: Long, deltaMs: Long, durationMs: Long): Long {
+        val maxPositionMs = (durationMs - 100L).coerceAtLeast(0L)
+        return (baseMs + deltaMs).coerceIn(0L, maxPositionMs)
+    }
+
+    private fun seekVodTo(positionMs: Long) {
+        showVodLoading(currentMode == PlayerConfig.Mode.VOD)
+        manager.seekTo(positionMs)
+    }
+
+    private fun showVodLoading(show: Boolean) {
+        hostView.showBuffering(show)
+        vodController?.showLoading(show)
+    }
 
     @UniComponentProp(name = "mode")
     fun setModeProp(mode: String) {
@@ -203,7 +302,7 @@ class LyoPlayerComponent(
     fun setAutoplayProp(autoplay: Boolean) {
         propAutoplay = autoplay
         if (hasAppliedSource) {
-            if (autoplay) manager.play() else manager.pause()
+            if (autoplay && !playbackResumeBlocked) manager.play() else manager.pause()
         }
     }
 
@@ -218,7 +317,7 @@ class LyoPlayerComponent(
     @UniComponentProp(name = "startPosition")
     fun setStartPositionProp(positionMs: Long) {
         propStartPositionMs = positionMs
-        if (hasAppliedSource && positionMs > 0L) manager.seekTo(positionMs)
+        if (hasAppliedSource && positionMs > 0L) seekVodTo(positionMs)
     }
 
     @UniComponentProp(name = "speed")
@@ -228,16 +327,24 @@ class LyoPlayerComponent(
         vodController?.setSpeed(speed)
     }
 
+    @UniComponentProp(name = "longPressSpeed")
+    fun setLongPressSpeedProp(speed: Float) {
+        longPressSpeed = speed.coerceIn(1f, 4f)
+    }
+
     // ===== 方法（@UniJSMethod，§7.2） =====
 
     @UniJSMethod(uiThread = true)
-    fun play() = manager.play()
+    fun play() = playByUser()
 
     @UniJSMethod(uiThread = true)
-    fun pause() = manager.pause()
+    fun pause() = pauseByUser()
 
     @UniJSMethod(uiThread = true)
-    fun stop() = manager.stop()
+    fun stop() {
+        playbackResumeBlocked = true
+        manager.stop()
+    }
 
     @UniJSMethod(uiThread = true)
     fun seekTo(options: JSONObject) {
@@ -245,7 +352,7 @@ class LyoPlayerComponent(
         val positionMs = options.getByPath("positionMs") as? Long
             ?: options.getLong("positionMs")
             ?: 0L
-        manager.seekTo(positionMs)
+        seekVodTo(positionMs)
     }
 
     @UniJSMethod(uiThread = true)
@@ -273,6 +380,10 @@ class LyoPlayerComponent(
     @UniJSMethod(uiThread = true)
     fun replaceSource(options: JSONObject) {
         val src = options.getString("src") ?: ""
+        if (src.isBlank()) {
+            onError(PlayerErrorMapper.map(IllegalArgumentException("empty media source")))
+            return
+        }
         val headers = parseHeaders(options.getJSONObject("headers"))
         val position = options.getLong("position") ?: 0L
         val autoplay = if (options.containsKey("autoplay")) options.getBooleanValue("autoplay") else true
@@ -283,10 +394,12 @@ class LyoPlayerComponent(
         options.getString("title")?.let { propTitle = it }
         options.getString("poster")?.let { propPoster = it }
         propAutoplay = autoplay
+        playbackResumeBlocked = !autoplay
         if (options.containsKey("muted")) propMuted = options.getBooleanValue("muted")
         propStartPositionMs = position
 
         hostView.showShutter()
+        vodController?.resetProgress()
         liveController?.showError(null)
         val config = PlayerConfig(
             mode = currentMode,
@@ -301,9 +414,9 @@ class LyoPlayerComponent(
         )
         vodController?.setPlaying(autoplay)
         liveController?.setPlaying(autoplay)
+        showVodLoading(currentMode == PlayerConfig.Mode.VOD && autoplay)
         liveController?.showLoading(autoplay)
-        manager.applyConfig(config)
-        hasAppliedSource = src.isNotEmpty()
+        hasAppliedSource = applyConfig(config)
     }
 
     @UniJSMethod(uiThread = true)
@@ -319,15 +432,23 @@ class LyoPlayerComponent(
         isFullscreen = true
         vodController?.setFullscreen(true)
         liveController?.setFullscreen(true)
-        fireEvent("fullscreenchange", mapOf("detail" to mapOf("isFullscreen" to true)))
+        // 先通知 nvue 隐藏状态栏占位和下方内容，再在下一轮 UI 消息中旋转原生窗口。
+        // 若先旋转，横屏第一帧仍会带着竖屏页面顶部的黑色占位条。
+        fireEvent("fullscreenchange", mapOf("isFullscreen" to true))
+        hostView.post {
+            if (isFullscreen) enterActivityFullscreen()
+        }
     }
 
     @UniJSMethod(uiThread = true)
     fun exitFullscreen() {
+        isControlsLocked = false
+        fullscreenRotatedToPortrait = false
         isFullscreen = false
+        exitActivityFullscreen()
         vodController?.setFullscreen(false)
         liveController?.setFullscreen(false)
-        fireEvent("fullscreenchange", mapOf("detail" to mapOf("isFullscreen" to false)))
+        fireEvent("fullscreenchange", mapOf("isFullscreen" to false))
     }
 
     @UniJSMethod(uiThread = true)
@@ -341,27 +462,325 @@ class LyoPlayerComponent(
     /** 释放：必须幂等，多次调用不崩溃（§7.2） */
     @UniJSMethod(uiThread = true)
     fun release() {
+        exitActivityFullscreen()
+        unregisterSystemVolumeObserver()
         hostView.detachPlayer(manager.getPlayer())
         manager.release()
+    }
+
+    private fun playByUser() {
+        playbackResumeBlocked = false
+        manager.play()
+    }
+
+    private fun pauseByUser() {
+        playbackResumeBlocked = true
+        manager.pause()
     }
 
     // ===== 生命周期回调 =====
 
     override fun onActivityResume() {
         super.onActivityResume()
-        manager.play()
+        // 首次进入的自动播放由 autoplay 属性负责。Activity 恢复不能替用户播放；
+        // 无论是用户手动暂停还是 onHide 导致的暂停，都只能由用户主动恢复。
     }
 
     override fun onActivityPause() {
         super.onActivityPause()
         // 页面不可见时由页面明确调用暂停，不允许无控制后台播放（§9.1）
-        manager.pause()
+        pauseByUser()
     }
 
     override fun onActivityDestroy() {
         super.onActivityDestroy()
+        exitActivityFullscreen()
+        unregisterSystemVolumeObserver()
         hostView.detachPlayer(manager.getPlayer())
         manager.release()
+    }
+
+    private fun registerSystemVolumeObserver(context: Context) {
+        val manager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+        audioManager = manager
+        lastSystemVolume = manager.getStreamVolume(AudioManager.STREAM_MUSIC)
+        volumeObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) {
+                val current = manager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                val changed = current != lastSystemVolume
+                lastSystemVolume = current
+                if (changed && current > 0 && propMuted) {
+                    propMuted = false
+                    this@LyoPlayerComponent.manager.setMuted(false)
+                    vodController?.setMuted(false)
+                    liveController?.setMuted(false)
+                    fireMuteChange(false)
+                }
+            }
+        }
+        context.contentResolver.registerContentObserver(
+            Settings.System.CONTENT_URI,
+            true,
+            volumeObserver!!,
+        )
+    }
+
+    private fun unregisterSystemVolumeObserver() {
+        val observer = volumeObserver ?: return
+        try {
+            getContext().contentResolver.unregisterContentObserver(observer)
+        } catch (_: Throwable) {
+        }
+        volumeObserver = null
+    }
+
+    private fun enterActivityFullscreen() {
+        val activity = findActivity(getContext()) ?: return
+        if (previousOrientation == null) {
+            previousOrientation = activity.requestedOrientation
+            previousSystemUiVisibility = activity.window.decorView.systemUiVisibility
+            hadFullscreenWindowFlag =
+                activity.window.attributes.flags and WindowManager.LayoutParams.FLAG_FULLSCREEN != 0
+        }
+        activity.window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+        activity.window.decorView.systemUiVisibility =
+            View.SYSTEM_UI_FLAG_FULLSCREEN or
+                View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
+                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+
+        // Do not merely enlarge the component inside the nvue page. The page content area can
+        // still retain status-bar/safe-area insets after rotation. Move the same native player
+        // view into a window-level overlay so controls use the complete physical screen.
+        if (fullscreenContainer == null) {
+            val parent = hostView.parent as? ViewGroup
+            val decor = activity.findViewById<FrameLayout>(android.R.id.content)
+            if (parent != null && decor != null) {
+                try {
+                    embeddedParent = parent
+                    embeddedIndex = parent.indexOfChild(hostView)
+                    embeddedLayoutParams = hostView.layoutParams
+                    parent.removeView(hostView)
+
+                    val container = object : FrameLayout(activity) {
+                        override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+                            if (event.keyCode == KeyEvent.KEYCODE_BACK && isFullscreen) {
+                                if (!isControlsLocked && event.action == KeyEvent.ACTION_UP) {
+                                    exitFullscreen()
+                                }
+                                return true
+                            }
+                            return super.dispatchKeyEvent(event)
+                        }
+                    }.apply {
+                        setBackgroundColor(android.graphics.Color.BLACK)
+                        isFocusableInTouchMode = true
+                        systemUiVisibility = activity.window.decorView.systemUiVisibility
+                        applyFullscreenSafeInsets(this)
+                        addView(
+                            hostView,
+                            FrameLayout.LayoutParams(
+                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                ViewGroup.LayoutParams.MATCH_PARENT,
+                            ),
+                        )
+                        addOnLayoutChangeListener { view, _, _, _, _, _, _, _, _ ->
+                            val availableWidth =
+                                (view.width - view.paddingLeft - view.paddingRight).coerceAtLeast(1)
+                            val availableHeight =
+                                (view.height - view.paddingTop - view.paddingBottom).coerceAtLeast(1)
+                            val params = hostView.layoutParams as? FrameLayout.LayoutParams
+                            if (params?.width != availableWidth || params.height != availableHeight) {
+                                hostView.layoutParams = FrameLayout.LayoutParams(
+                                    availableWidth,
+                                    availableHeight,
+                                    Gravity.TOP or Gravity.START,
+                                )
+                            }
+                        }
+                    }
+                    decor.addView(
+                        container,
+                        FrameLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                        ),
+                    )
+                    container.requestApplyInsets()
+                    container.requestFocus()
+                    registerFullscreenBackHandler(activity)
+                    fullscreenContainer = container
+                } catch (t: Throwable) {
+                    Log.e(TAG, "enter fullscreen container failed", t)
+                    runCatching {
+                        (hostView.parent as? ViewGroup)?.removeView(hostView)
+                        if (hostView.parent == null && parent.parent != null) {
+                            val index = embeddedIndex.coerceIn(0, parent.childCount)
+                            parent.addView(hostView, index, embeddedLayoutParams)
+                        }
+                    }.onFailure { restoreError ->
+                        Log.e(TAG, "restore embedded player failed", restoreError)
+                    }
+                    embeddedParent = null
+                    embeddedIndex = -1
+                    embeddedLayoutParams = null
+                }
+            }
+        }
+        activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+    }
+
+    private fun rotateFullscreen() {
+        if (!isFullscreen || isControlsLocked) return
+        val activity = findActivity(getContext()) ?: return
+        fullscreenRotatedToPortrait = !fullscreenRotatedToPortrait
+        activity.requestedOrientation = if (fullscreenRotatedToPortrait) {
+            ActivityInfo.SCREEN_ORIENTATION_USER_PORTRAIT
+        } else {
+            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        }
+    }
+
+    private fun setFullscreenLocked(locked: Boolean) {
+        if (!isFullscreen && locked) return
+        isControlsLocked = locked
+        val activity = findActivity(getContext()) ?: return
+        activity.requestedOrientation = if (locked) {
+            when (activity.resources.configuration.orientation) {
+                android.content.res.Configuration.ORIENTATION_PORTRAIT ->
+                    ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                else -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            }
+        } else if (fullscreenRotatedToPortrait) {
+            ActivityInfo.SCREEN_ORIENTATION_USER_PORTRAIT
+        } else {
+            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        }
+    }
+
+    /**
+     * 真机横屏时刘海、圆角和手势导航区仍可能覆盖 Activity 的物理全屏区域。
+     * 模拟器通常没有这些 inset，所以不能只依赖 MATCH_PARENT。这里把播放器约束在
+     * 当前设备的安全区域内；导航栏临时滑出时 WindowInsets 也会重新下发。
+     */
+    private fun applyFullscreenSafeInsets(container: FrameLayout) {
+        container.setOnApplyWindowInsetsListener { view, insets ->
+            var left = insets.systemWindowInsetLeft
+            var right = insets.systemWindowInsetRight
+            var bottom = insets.systemWindowInsetBottom
+            var top = 0
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                insets.displayCutout?.let { cutout ->
+                    left = maxOf(left, cutout.safeInsetLeft)
+                    top = maxOf(top, cutout.safeInsetTop)
+                    right = maxOf(right, cutout.safeInsetRight)
+                    bottom = maxOf(bottom, cutout.safeInsetBottom)
+                }
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val gestures = insets.mandatorySystemGestureInsets
+                left = maxOf(left, gestures.left)
+                right = maxOf(right, gestures.right)
+                bottom = maxOf(bottom, gestures.bottom)
+            }
+
+            // 视频区域上下使用对称安全留白，避免仅扣除底部导航区后画面视觉中心上移。
+            top = maxOf(top, bottom)
+
+            // 保留真实安全区总宽度，只把横屏内容整体向左微调 4dp：
+            // 左侧挖孔留白减少多少，右侧就等量增加多少。
+            val horizontalShift = TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP,
+                4f,
+                view.resources.displayMetrics,
+            ).toInt()
+            val appliedShift = minOf(left, horizontalShift)
+            left -= appliedShift
+            right += appliedShift
+
+            if (view.paddingLeft != left || view.paddingTop != top ||
+                view.paddingRight != right || view.paddingBottom != bottom
+            ) {
+                view.setPadding(left, top, right, bottom)
+            }
+            insets
+        }
+    }
+
+    private fun registerFullscreenBackHandler(activity: Activity) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            fullscreenBackCallback != null
+        ) return
+        val callback = OnBackInvokedCallback {
+            if (isFullscreen && !isControlsLocked) exitFullscreen()
+        }
+        runCatching {
+            activity.onBackInvokedDispatcher.registerOnBackInvokedCallback(
+                OnBackInvokedDispatcher.PRIORITY_OVERLAY,
+                callback,
+            )
+            fullscreenBackCallback = callback
+        }.onFailure { error ->
+            Log.w(TAG, "register fullscreen back callback failed", error)
+        }
+    }
+
+    private fun unregisterFullscreenBackHandler(activity: Activity) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        fullscreenBackCallback?.let { callback ->
+            runCatching {
+                activity.onBackInvokedDispatcher.unregisterOnBackInvokedCallback(callback)
+            }.onFailure { error ->
+                Log.w(TAG, "unregister fullscreen back callback failed", error)
+            }
+        }
+        fullscreenBackCallback = null
+    }
+
+    private fun exitActivityFullscreen() {
+        val activity = findActivity(getContext()) ?: return
+        unregisterFullscreenBackHandler(activity)
+        if (previousOrientation == null) return
+
+        try {
+            fullscreenContainer?.let { container ->
+                container.removeView(hostView)
+                (container.parent as? ViewGroup)?.removeView(container)
+                embeddedParent?.let { parent ->
+                    if (parent.parent != null && hostView.parent == null) {
+                        val index = embeddedIndex.coerceIn(0, parent.childCount)
+                        parent.addView(hostView, index, embeddedLayoutParams)
+                    }
+                }
+            }
+        } catch (t: Throwable) {
+            Log.e(TAG, "exit fullscreen container failed", t)
+        }
+        fullscreenContainer = null
+        embeddedParent = null
+        embeddedIndex = -1
+        embeddedLayoutParams = null
+
+        previousOrientation?.let { activity.requestedOrientation = it }
+        previousSystemUiVisibility?.let { activity.window.decorView.systemUiVisibility = it }
+        if (!hadFullscreenWindowFlag) {
+            activity.window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+        }
+        previousOrientation = null
+        previousSystemUiVisibility = null
+        hadFullscreenWindowFlag = false
+    }
+
+    private fun findActivity(context: Context): Activity? {
+        var current = context
+        while (current is ContextWrapper) {
+            if (current is Activity) return current
+            current = current.baseContext
+        }
+        return current as? Activity
     }
 
     // ===== 内部：配置构造 / 控制层管理 / 事件转发 =====
@@ -391,8 +810,15 @@ class LyoPlayerComponent(
     }
 
     /** 把当前最新属性合并到 manager：实际由调用方提供完整 src+headers 后才生效 */
-    private fun applyConfig(config: PlayerConfig) {
-        manager.applyConfig(config)
+    private fun applyConfig(config: PlayerConfig): Boolean {
+        return try {
+            manager.applyConfig(config)
+            true
+        } catch (t: Throwable) {
+            Log.e(TAG, "apply player config failed", t)
+            onError(PlayerErrorMapper.map(t))
+            false
+        }
     }
 
     /**
@@ -402,6 +828,7 @@ class LyoPlayerComponent(
     private fun applyProps() {
         if (propSrc.isEmpty()) return
         hostView.showShutter()
+        vodController?.resetProgress()
         val config = PlayerConfig(
             mode = currentMode,
             src = propSrc,
@@ -415,10 +842,10 @@ class LyoPlayerComponent(
         )
         vodController?.setPlaying(propAutoplay)
         liveController?.setPlaying(propAutoplay)
+        showVodLoading(currentMode == PlayerConfig.Mode.VOD && propAutoplay)
         liveController?.showError(null)
         liveController?.showLoading(propAutoplay)
-        manager.applyConfig(config)
-        hasAppliedSource = true
+        hasAppliedSource = applyConfig(config)
     }
 
     /** 合并同一轮 nvue 属性 setter，避免每个属性都重新 prepare 当前媒体。 */
@@ -442,22 +869,26 @@ class LyoPlayerComponent(
                     vodController = VodControllerView(
                         context = getContext(),
                         hostView = hostView,
-                        onPlayToggle = { manager.play() },
-                        onPauseToggle = { manager.pause() },
-                        onSeekTo = { ms -> manager.seekTo(ms) },
+                        onPlayToggle = { playByUser() },
+                        onPauseToggle = { pauseByUser() },
+                        onSeekTo = { ms -> seekVodTo(ms) },
                         onSpeedChange = { s ->
                             lastUserSpeed = s
                             manager.setSpeed(s)
+                            fireSpeedChange(s)
                         },
-                        onPrevEpisode = { fireEvent("prevepisode", mapOf("detail" to emptyMap<String, Any>())) },
-                        onNextEpisode = { fireEvent("nextepisode", mapOf("detail" to emptyMap<String, Any>())) },
+                        onPrevEpisode = { fireEvent("prevepisode") },
+                        onNextEpisode = { fireEvent("nextepisode") },
                         onMuteToggle = { m ->
+                            propMuted = m
                             manager.setMuted(m)
                             fireMuteChange(m)
                         },
                         onFullscreenToggle = { fs ->
                             if (fs) requestFullscreen() else exitFullscreen()
                         },
+                        onRotate = { rotateFullscreen() },
+                        onLockChange = { locked -> setFullscreenLocked(locked) },
                         onBack = {
                             fireEvent("back", mapOf("detail" to mapOf("isFullscreen" to isFullscreen)))
                         },
@@ -473,13 +904,15 @@ class LyoPlayerComponent(
                 }
             }
             PlayerConfig.Mode.LIVE -> {
+                showVodLoading(false)
                 if (liveController == null) {
                     liveController = LiveControllerView(
                         context = getContext(),
                         hostView = hostView,
-                        onPlayToggle = { manager.play() },
-                        onPauseToggle = { manager.pause() },
+                        onPlayToggle = { playByUser() },
+                        onPauseToggle = { pauseByUser() },
                         onMuteToggle = { m ->
+                            propMuted = m
                             manager.setMuted(m)
                             fireMuteChange(m)
                         },
@@ -505,6 +938,7 @@ class LyoPlayerComponent(
 
     private fun onError(err: PlayerErrorMapper.MappedError) {
         vodController?.setPlaying(false)
+        showVodLoading(false)
         liveController?.setPlaying(false)
         liveController?.showLoading(false)
         liveController?.showError(err.message)
@@ -521,18 +955,24 @@ class LyoPlayerComponent(
         when (state) {
             PlayerManager.State.PLAYING -> {
                 vodController?.setPlaying(true)
+                showVodLoading(false)
                 liveController?.setPlaying(true)
                 liveController?.showLoading(false)
             }
             PlayerManager.State.PAUSED, PlayerManager.State.ENDED -> {
                 vodController?.setPlaying(false)
+                showVodLoading(false)
                 liveController?.setPlaying(false)
                 liveController?.showLoading(false)
             }
-            PlayerManager.State.BUFFERING -> liveController?.showLoading(true)
+            PlayerManager.State.BUFFERING -> {
+                showVodLoading(currentMode == PlayerConfig.Mode.VOD)
+                liveController?.showLoading(true)
+            }
             PlayerManager.State.READY -> {
                 val playing = manager.getState()["isPlaying"] == true
                 vodController?.setPlaying(playing)
+                showVodLoading(false)
                 liveController?.setPlaying(playing)
                 liveController?.showLoading(false)
             }
@@ -581,6 +1021,11 @@ class LyoPlayerComponent(
     /** 用户在播放器原生控制层点击静音按钮时，回传新的静音状态给 JS */
     private fun fireMuteChange(muted: Boolean) {
         fireEvent("mutechange", mapOf("detail" to mapOf("muted" to muted)))
+    }
+
+    /** 用户在播放器原生控制层切换倍速后，回传新的倍速给 JS（用于续播恢复） */
+    private fun fireSpeedChange(speed: Float) {
+        fireEvent("speedchange", mapOf("detail" to mapOf("speed" to speed)))
     }
 
     // ===== 工具：headers 解析 =====

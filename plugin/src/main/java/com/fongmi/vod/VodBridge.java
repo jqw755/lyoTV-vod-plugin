@@ -118,12 +118,30 @@ public class VodBridge {
         invoke(() -> {
             Site site = VodConfig.get().getHome();
             if (site == null || TextUtils.isEmpty(site.getKey())) {
-                android.util.Log.w("VodPlugin", "home 跳过：订阅尚未加载完成");
+                android.util.Log.w("VodPlugin", "home skipped: config is not ready");
                 cb.invoke(ok(Result.list(new ArrayList<>()).toString()));
                 return;
             }
-            Result result = SiteApi.homeContent(site);
-            cb.invoke(ok(result.toString()));
+            // A JS spider may perform network I/O during its first initialization. Return from
+            // the UniSDK dispatch thread immediately so UI events and the JS timeout can run.
+            Task.largeExecutor().execute(() -> {
+                long startedAt = System.currentTimeMillis();
+                android.util.Log.i("VodPlugin", "home start: " + site.getKey());
+                try {
+                    Result result = SiteApi.homeContent(site);
+                    // Fongmi 在首页点击时会把当前 home site key 一并传给 VideoActivity。
+                    // UniApp 列表没有 Activity 上下文，因此把所属站点写回每条 Vod。
+                    for (Vod vod : result.getList()) vod.setSite(site);
+                    android.util.Log.i("VodPlugin", "home success: " + site.getKey()
+                            + ", elapsed=" + (System.currentTimeMillis() - startedAt) + "ms");
+                    cb.invoke(ok(result.toString()));
+                } catch (Exception e) {
+                    android.util.Log.e("VodPlugin", "home error: " + site.getKey()
+                            + ", elapsed=" + (System.currentTimeMillis() - startedAt)
+                            + "ms, " + e.getMessage(), e);
+                    cb.invoke(error(-2, e.getMessage()));
+                }
+            });
         }, cb);
     }
 
@@ -138,6 +156,8 @@ public class VodBridge {
                 for (String k : args.getAsJsonObject("extend").keySet()) extend.put(k, args.getAsJsonObject("extend").get(k).getAsString());
             }
             Result result = SiteApi.categoryContent(key, tid, page, filter, extend);
+            Site site = VodConfig.get().getSite(key);
+            for (Vod vod : result.getList()) vod.setSite(site);
             cb.invoke(ok(result.toString()));
         }, cb);
     }

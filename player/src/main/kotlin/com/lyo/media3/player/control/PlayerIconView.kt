@@ -3,6 +3,7 @@ package com.lyo.media3.player.control
 import android.content.Context
 import android.graphics.Color
 import android.util.TypedValue
+import android.view.View
 import android.widget.ImageView
 
 /**
@@ -13,14 +14,21 @@ import android.widget.ImageView
 class PlayerIconView(
     context: Context,
     icon: Icon,
-    iconDp: Int = 18,
+    private val baseIconDp: Int = 16,
 ) : ImageView(context) {
 
-    enum class Icon { BACK, PLAY, PAUSE, PREVIOUS, NEXT, VOLUME, MUTED, FULLSCREEN, EXIT_FULLSCREEN }
+    enum class Icon {
+        BACK, PLAY, PAUSE, PREVIOUS, NEXT, VOLUME, MUTED,
+        FULLSCREEN, EXIT_FULLSCREEN, LOCK, UNLOCK, ROTATE
+    }
+
+    private var desiredWidthPx = 0
+    private var desiredHeightPx = 0
 
     var icon: Icon = icon
         set(value) {
             field = value
+            applySize(value)
             applyIcon(value)
         }
 
@@ -34,18 +42,33 @@ class PlayerIconView(
             Icon.VOLUME -> "lyo_ic_volume"
             Icon.MUTED -> "lyo_ic_muted"
             Icon.FULLSCREEN -> "lyo_ic_fullscreen"
-            // 当前素材未包含“退出全屏”，先复用展开图标，避免伪造素材。
-            Icon.EXIT_FULLSCREEN -> "lyo_ic_fullscreen"
+            Icon.EXIT_FULLSCREEN -> "lyo_ic_exit_fullscreen"
+            Icon.LOCK -> "lyo_ic_lock"
+            Icon.UNLOCK -> "lyo_ic_unlock"
+            Icon.ROTATE -> "lyo_ic_rotate"
         }
 
     init {
         scaleType = ScaleType.FIT_CENTER
         setColorFilter(Color.WHITE)
         setBackgroundColor(Color.TRANSPARENT)
-        val containerWidth = if (iconDp > 24) 72 else 40
-        val containerHeight = if (iconDp > 24) 72 else 36
+        applySize(icon)
+        isClickable = true
+        isFocusable = true
+        applyIcon(icon)
+    }
+
+    private fun applySize(value: Icon) {
+        // 中央播放按钮保持 40dp；切换为暂停态时只将暂停图案增大 2dp。
+        val iconDp = if (value == Icon.PAUSE && baseIconDp > 24) baseIconDp + 2 else baseIconDp
+        val containerWidth = if (baseIconDp > 24) 72 else 40
+        val containerHeight = if (baseIconDp > 24) 72 else 36
+        desiredWidthPx = dp(containerWidth)
+        desiredHeightPx = dp(containerHeight)
         val horizontalPadding = ((containerWidth - iconDp) / 2).coerceAtLeast(0)
         val verticalPadding = ((containerHeight - iconDp) / 2).coerceAtLeast(0)
+        // 必须固定按钮容器尺寸。仅设置 minimumWidth/minimumHeight 时，
+        // ImageView 会按 PNG 固有尺寸继续扩张，padding 无法把图标限制到 iconDp。
         setPadding(
             dp(horizontalPadding),
             dp(verticalPadding),
@@ -54,9 +77,13 @@ class PlayerIconView(
         )
         minimumWidth = dp(containerWidth)
         minimumHeight = dp(containerHeight)
-        isClickable = true
-        isFocusable = true
-        applyIcon(icon)
+    }
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        setMeasuredDimension(
+            View.resolveSize(desiredWidthPx, widthMeasureSpec),
+            View.resolveSize(desiredHeightPx, heightMeasureSpec),
+        )
     }
 
     private fun applyIcon(value: Icon) {
