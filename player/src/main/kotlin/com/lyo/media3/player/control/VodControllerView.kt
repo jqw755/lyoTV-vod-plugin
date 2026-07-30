@@ -78,6 +78,7 @@ class VodControllerView(
     private val rotateBtn: PlayerIconView
     private val lockBtn: PlayerIconView
     private val centerControls: LinearLayout
+    private val rightControls: LinearLayout
     private val titleText: TextView
 
     private val speedOptions = floatArrayOf(1f, 1.5f, 1.75f, 2f, 3f, 4f)
@@ -91,7 +92,7 @@ class VodControllerView(
         topBar = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(3), dp(6), dp(21), dp(6))
+            setPadding(dp(12), dp(6), dp(12), dp(6))
             background = topGradient()
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.TOP)
         }
@@ -123,7 +124,7 @@ class VodControllerView(
         bottomBar = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             // 左右使用相同边距；全屏安全区由外层容器统一补偿，避免竖屏操作栏偏左。
-            setPadding(dp(8), dp(4), dp(8), 0)
+            setPadding(dp(12), dp(4), dp(12), 0)
             background = bottomGradient()
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.BOTTOM)
         }
@@ -219,7 +220,7 @@ class VodControllerView(
             val speedIcon = resolvePlayerDrawable(context, "lyo_ic_speed")
             if (speedIcon != 0) {
                 val drawable = resources.getDrawable(speedIcon, context.theme).apply {
-                    setBounds(0, 0, dp(33), dp(33))
+                    setBounds(0, 0, dp(38), dp(38))
                 }
                 setCompoundDrawablesRelative(drawable, null, null, null)
             }
@@ -233,16 +234,15 @@ class VodControllerView(
         val progressRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            translationY = dp(9).toFloat()
+            translationY = dp(19).toFloat()
             addView(currentTimeText)
             addView(seekBar)
             addView(durationText)
         }
         val actionRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
+            gravity = Gravity.CENTER
             translationY = dp(10).toFloat()
-            addView(View(context), LinearLayout.LayoutParams(0, 1, 1f))
             addView(speedBtn)
             addView(muteBtn)
             addView(fullscreenBtn)
@@ -253,17 +253,18 @@ class VodControllerView(
         addView(topBar)
         addView(centerControls)
         addView(bottomBar)
-        addView(LinearLayout(context).apply {
+        rightControls = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
             layoutParams = LayoutParams(
                 LayoutParams.WRAP_CONTENT,
                 LayoutParams.WRAP_CONTENT,
                 Gravity.END or Gravity.CENTER_VERTICAL,
-            ).apply { marginEnd = dp(4) }
+            ).apply { marginEnd = dp(12) }
             addView(lockBtn)
             addView(rotateBtn)
-        })
+        }
+        addView(rightControls)
 
         // 默认隐藏，等首次播放或用户单击后再显示
         visibility = View.GONE
@@ -310,7 +311,8 @@ class VodControllerView(
     }
 
     fun showLoading(show: Boolean) {
-        centerPlayBtn.visibility = if (show) View.GONE else View.VISIBLE
+        // 保留播放按钮占位，避免加载时上一集/下一集突然靠拢。
+        centerPlayBtn.visibility = if (show) View.INVISIBLE else View.VISIBLE
     }
 
     fun updateProgress(positionMs: Long, durationMs: Long, bufferedMs: Long) {
@@ -385,6 +387,27 @@ class VodControllerView(
         topBar.visibility = if (isLocked) View.GONE else View.VISIBLE
         centerControls.visibility = if (isLocked) View.GONE else View.VISIBLE
         bottomBar.visibility = if (isLocked) View.GONE else View.VISIBLE
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        val playParams = centerPlayBtn.layoutParams as? LinearLayout.LayoutParams ?: return
+        // FongMi 横屏使用 40dp；竖屏空间较窄，缩为 20dp，避免切集按钮离播放键过远。
+        val margin = dp(if (w > h) 24 else 12)
+        if (playParams.marginStart != margin || playParams.marginEnd != margin) {
+            playParams.marginStart = margin
+            playParams.marginEnd = margin
+            centerPlayBtn.layoutParams = playParams
+        }
+        val horizontalPadding = dp(if (w > h) 12 else 10)
+        topBar.setPadding(horizontalPadding, dp(6), horizontalPadding, dp(6))
+        bottomBar.setPadding(horizontalPadding, dp(4), horizontalPadding, 0)
+        (rightControls.layoutParams as? LayoutParams)?.let { params ->
+            if (params.marginEnd != horizontalPadding) {
+                params.marginEnd = horizontalPadding
+                rightControls.layoutParams = params
+            }
+        }
     }
 
     private fun toggleSpeedPopup() {

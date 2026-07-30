@@ -11,7 +11,6 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import android.util.Log
-import android.util.TypedValue
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
@@ -462,6 +461,7 @@ class LyoPlayerComponent(
     /** 释放：必须幂等，多次调用不崩溃（§7.2） */
     @UniJSMethod(uiThread = true)
     fun release() {
+        hostView.keepScreenOn = false
         exitActivityFullscreen()
         unregisterSystemVolumeObserver()
         hostView.detachPlayer(manager.getPlayer())
@@ -494,6 +494,7 @@ class LyoPlayerComponent(
 
     override fun onActivityDestroy() {
         super.onActivityDestroy()
+        hostView.keepScreenOn = false
         exitActivityFullscreen()
         unregisterSystemVolumeObserver()
         hostView.detachPlayer(manager.getPlayer())
@@ -690,16 +691,10 @@ class LyoPlayerComponent(
             // 视频区域上下使用对称安全留白，避免仅扣除底部导航区后画面视觉中心上移。
             top = maxOf(top, bottom)
 
-            // 保留真实安全区总宽度，只把横屏内容整体向左微调 4dp：
-            // 左侧挖孔留白减少多少，右侧就等量增加多少。
-            val horizontalShift = TypedValue.applyDimension(
-                TypedValue.COMPLEX_UNIT_DIP,
-                4f,
-                view.resources.displayMetrics,
-            ).toInt()
-            val appliedShift = minOf(left, horizontalShift)
-            left -= appliedShift
-            right += appliedShift
+            // 使用左右相同的最大安全边距，避免刘海方向变化后整套控件偏左或偏右。
+            val horizontalSafeInset = maxOf(left, right)
+            left = horizontalSafeInset
+            right = horizontalSafeInset
 
             if (view.paddingLeft != left || view.paddingTop != top ||
                 view.paddingRight != right || view.paddingBottom != bottom
@@ -952,6 +947,9 @@ class LyoPlayerComponent(
     }
 
     private fun onStateChanged(state: PlayerManager.State) {
+        // 对齐 FongMi：播放及播放中的缓冲阶段保持屏幕常亮；暂停、结束或停止后释放。
+        hostView.keepScreenOn =
+            state == PlayerManager.State.PLAYING || state == PlayerManager.State.BUFFERING
         when (state) {
             PlayerManager.State.PLAYING -> {
                 vodController?.setPlaying(true)

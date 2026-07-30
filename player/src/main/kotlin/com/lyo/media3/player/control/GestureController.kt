@@ -40,7 +40,7 @@ class GestureController(
         const val SEEK_MS_PER_PX = 50L
         const val DIRECTION_THRESHOLD_DP = 20
         const val SYSTEM_EDGE_GUARD_DP = 32
-        const val VERTICAL_ADJUST_RANGE = 0.8f
+        const val VERTICAL_ADJUST_RANGE = 0.6f
     }
 
     private var longPressActive = false
