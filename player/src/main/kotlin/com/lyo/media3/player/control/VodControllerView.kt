@@ -15,6 +15,7 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.SeekBar
+import android.widget.ScrollView
 import android.widget.TextView
 import com.lyo.media3.player.player.LyoPlayerView
 import java.math.BigDecimal
@@ -43,6 +44,7 @@ class VodControllerView(
     private val onSpeedChange: (Float) -> Unit,
     private val onPrevEpisode: () -> Unit,
     private val onNextEpisode: () -> Unit,
+    private val onSelectEpisode: (Int) -> Unit,
     private val onMuteToggle: (Boolean) -> Unit,
     private val onFullscreenToggle: (Boolean) -> Unit,
     private val onRotate: () -> Unit,
@@ -77,12 +79,20 @@ class VodControllerView(
     private val backBtn: PlayerIconView
     private val rotateBtn: PlayerIconView
     private val lockBtn: PlayerIconView
+    private val episodeBtn: TextView
     private val centerControls: LinearLayout
     private val rightControls: LinearLayout
     private val titleText: TextView
 
     private val speedOptions = floatArrayOf(1f, 1.5f, 1.75f, 2f, 3f, 4f)
     private var speedPopup: LinearLayout? = null
+
+    // 侧边栏（选集 + 倍速）
+    private var sidePanel: LyoSidePanel? = null
+    private val episodes: MutableList<String> = mutableListOf()
+    private var currentEpisodeIndex: Int = -1
+    // 切集 loading：切集时置 true，期间拦截重复点击
+    private var isEpisodeLoading: Boolean = false
 
     init {
         setBackgroundColor(Color.TRANSPARENT)
@@ -124,16 +134,27 @@ class VodControllerView(
         bottomBar = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             // 左右使用相同边距；全屏安全区由外层容器统一补偿，避免竖屏操作栏偏左。
-            setPadding(dp(12), dp(4), dp(12), 0)
+            setPadding(dp(12), dp(4), dp(12), dp(4))
             background = bottomGradient()
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.BOTTOM)
         }
-        prevBtn = makeIconBtn(PlayerIconView.Icon.PREVIOUS) { onPrevEpisode() }
-        nextBtn = makeIconBtn(PlayerIconView.Icon.NEXT) { onNextEpisode() }
+        prevBtn = makeIconBtn(PlayerIconView.Icon.PREVIOUS) { onPrevEpisode() }.apply {
+            background = episodeIconBackground()
+        }
+        nextBtn = makeIconBtn(PlayerIconView.Icon.NEXT) { onNextEpisode() }.apply {
+            background = episodeIconBackground()
+        }
         muteBtn = makeIconBtn(PlayerIconView.Icon.VOLUME) { toggleMute() }
         fullscreenBtn = makeIconBtn(PlayerIconView.Icon.FULLSCREEN) { toggleFullscreen() }
         rotateBtn = makeIconBtn(PlayerIconView.Icon.ROTATE) { onRotate() }
         lockBtn = makeIconBtn(PlayerIconView.Icon.UNLOCK) { toggleLock() }
+        episodeBtn = TextView(context).apply {
+            setTextColor(Color.WHITE)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+            text = "选集"
+            setPadding(dp(10), dp(4), dp(10), dp(4))
+            setOnClickListener { onEpisodeClick() }
+        }
         centerControls = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
@@ -151,7 +172,7 @@ class VodControllerView(
             text = "00:00"
             setPadding(dp(4), 0, dp(4), 0)
         }
-        val trackHeight = dp(2)
+        val trackHeight = dp(3)
         fun trackDrawable(color: Int): ClipDrawable {
             val shape = GradientDrawable().apply {
                 setColor(color)
@@ -170,15 +191,15 @@ class VodControllerView(
             setId(1, android.R.id.secondaryProgress)
             setId(2, android.R.id.progress)
         }
-        val thumbDiameter = dp(14)
+        val thumbDiameter = dp(15)
         val thumbDrawable = GradientDrawable().apply {
             shape = GradientDrawable.OVAL
             setColor(Color.WHITE)
             setSize(thumbDiameter, thumbDiameter)
         }
         seekBar = SeekBar(context).apply {
-            // 14dp 圆点只需要 16dp 布局高度；避免把整个底栏向播放器中央顶起。
-            layoutParams = LinearLayout.LayoutParams(0, dp(16), 1f)
+            // 15dp 圆点只需要 17dp 布局高度；避免把整个底栏向播放器中央顶起。
+            layoutParams = LinearLayout.LayoutParams(0, dp(17), 1f)
             max = 1000
             setProgressDrawable(progressDrawable)
             maxHeight = trackHeight
@@ -220,7 +241,7 @@ class VodControllerView(
             val speedIcon = resolvePlayerDrawable(context, "lyo_ic_speed")
             if (speedIcon != 0) {
                 val drawable = resources.getDrawable(speedIcon, context.theme).apply {
-                    setBounds(0, 0, dp(38), dp(38))
+                    setBounds(0, 0, dp(40), dp(40))
                 }
                 setCompoundDrawablesRelative(drawable, null, null, null)
             }
@@ -229,23 +250,28 @@ class VodControllerView(
             includeFontPadding = false
             // 竖向 padding 会把操作行撑高，并连带把上方进度条顶向播放器中央。
             setPadding(dp(12), 0, dp(12), 0)
-            setOnClickListener { toggleSpeedPopup() }
+            setOnClickListener { onSpeedClick() }
         }
         val progressRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            translationY = dp(19).toFloat()
+            translationY = dp(4).toFloat()
             addView(currentTimeText)
             addView(seekBar)
             addView(durationText)
         }
         val actionRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-            translationY = dp(10).toFloat()
+            gravity = Gravity.CENTER_VERTICAL or Gravity.END
+            translationY = 0f
+            addView(episodeBtn, LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
             addView(speedBtn)
-            addView(muteBtn)
-            addView(fullscreenBtn)
+            addView(muteBtn, LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
+                marginStart = dp(5)
+            })
+            addView(fullscreenBtn, LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
+                marginStart = dp(5)
+            })
         }
         bottomBar.addView(progressRow)
         bottomBar.addView(actionRow)
@@ -261,8 +287,12 @@ class VodControllerView(
                 LayoutParams.WRAP_CONTENT,
                 Gravity.END or Gravity.CENTER_VERTICAL,
             ).apply { marginEnd = dp(12) }
-            addView(lockBtn)
-            addView(rotateBtn)
+            addView(lockBtn, LinearLayout.LayoutParams(dp(40), dp(36)).apply {
+                bottomMargin = dp(14)
+            })
+            addView(rotateBtn, LinearLayout.LayoutParams(dp(40), dp(36)).apply {
+                topMargin = dp(14)
+            })
         }
         addView(rightControls)
 
@@ -303,6 +333,22 @@ class VodControllerView(
     fun setSpeed(speed: Float) {
         currentSpeed = speed
         speedBtn.text = formatSpeed(speed)
+    }
+
+    /** 设置选集列表（侧边栏用）。 */
+    fun setEpisodes(names: List<String>) {
+        episodes.clear()
+        episodes.addAll(names)
+    }
+
+    /** 设置当前选集索引（侧边栏高亮用）。 */
+    fun setCurrentEpisodeIndex(index: Int) {
+        currentEpisodeIndex = index
+    }
+
+    /** 切集 loading 状态：切集时置 true，播放就绪后置 false。 */
+    fun setEpisodeLoading(loading: Boolean) {
+        isEpisodeLoading = loading
     }
 
     fun setPlaying(playing: Boolean) {
@@ -384,6 +430,7 @@ class VodControllerView(
     private fun applyControlVisibility() {
         rotateBtn.visibility = if (isFullscreen && !isLocked) View.VISIBLE else View.GONE
         lockBtn.visibility = if (isFullscreen) View.VISIBLE else View.GONE
+        episodeBtn.visibility = if (isFullscreen && !isLocked) View.VISIBLE else View.GONE
         topBar.visibility = if (isLocked) View.GONE else View.VISIBLE
         centerControls.visibility = if (isLocked) View.GONE else View.VISIBLE
         bottomBar.visibility = if (isLocked) View.GONE else View.VISIBLE
@@ -393,7 +440,7 @@ class VodControllerView(
         super.onSizeChanged(w, h, oldw, oldh)
         val playParams = centerPlayBtn.layoutParams as? LinearLayout.LayoutParams ?: return
         // FongMi 横屏使用 40dp；竖屏空间较窄，缩为 20dp，避免切集按钮离播放键过远。
-        val margin = dp(if (w > h) 24 else 12)
+        val margin = dp(if (w > h) 24 else 10)
         if (playParams.marginStart != margin || playParams.marginEnd != margin) {
             playParams.marginStart = margin
             playParams.marginEnd = margin
@@ -408,6 +455,135 @@ class VodControllerView(
                 rightControls.layoutParams = params
             }
         }
+    }
+
+    private fun onEpisodeClick() {
+        // 仅全屏可打开侧边栏
+        if (!isFullscreen || isLocked) return
+        // 切集 loading 期间不重复打开
+        if (isEpisodeLoading && sidePanel == null) return
+        openSidePanel(SidePanelType.EPISODES)
+    }
+
+    private fun onSpeedClick() {
+        if (!isFullscreen || isLocked) {
+            toggleSpeedPopup()
+            return
+        }
+        openSidePanel(SidePanelType.SPEED)
+    }
+
+    private enum class SidePanelType { EPISODES, SPEED }
+
+    private fun openSidePanel(type: SidePanelType) {
+        val panel = sidePanel ?: LyoSidePanel(
+            context,
+            maxWidthDp = 240,
+            onDismiss = {
+                sidePanel = null
+                show()
+            },
+        ).also { sidePanel = it }
+        if (type == SidePanelType.EPISODES) {
+            // 原生层按播放器实际宽度换算 200rpx（设计基准宽度 750rpx）。
+            panel.configure(
+                widthPx = (hostView.width * 200f / 750f).toInt(),
+                backgroundColor = Color.WHITE,
+            )
+        } else {
+            panel.configure()
+        }
+        panel.setContent(buildPanelContent(type))
+        panel.show(hostView)
+        cancelAutoHide()
+    }
+
+    /**
+     * 构造侧边栏内容：[SidePanelType.EPISODES] 只放选集列表，
+     * [SidePanelType.SPEED] 只放倍速列表。
+     */
+    private fun buildPanelContent(type: SidePanelType): View {
+        val root = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.TOP
+        }
+        when (type) {
+            SidePanelType.EPISODES -> {
+                val episodeTitle = TextView(context).apply {
+                    setTextColor(0xFFfe8027.toInt())
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                    text = "选集"
+                    setPadding(0, dp(4), 0, dp(8))
+                }
+                root.addView(episodeTitle)
+                val episodeScroll = ScrollView(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        0,
+                        1f,
+                    )
+                }
+                val episodeList = LinearLayout(context).apply {
+                    orientation = LinearLayout.VERTICAL
+                }
+                episodes.forEachIndexed { index, name ->
+                    val tv = TextView(context).apply {
+                        setTextColor(if (index == currentEpisodeIndex) 0xFFfe8027.toInt() else Color.BLACK)
+                        setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                        text = name
+                        maxLines = 1
+                        ellipsize = android.text.TextUtils.TruncateAt.END
+                        setPadding(0, dp(10), 0, dp(10))
+                        // 浅灰横线分割
+                        val divider = android.graphics.drawable.GradientDrawable().apply {
+                            shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                            setColor(0x22000000)
+                            setSize(0, 1)
+                        }
+                        setCompoundDrawablesRelative(null, null, null, divider)
+                        compoundDrawablePadding = 0
+                        setOnClickListener {
+                            // 当前集点中拦截，避免再次刷新播放该集
+                            if (index == currentEpisodeIndex) return@setOnClickListener
+                            // 切集 loading 期间拦截，避免无反应默默切用户以为不知道就继续多点
+                            if (isEpisodeLoading) return@setOnClickListener
+                            isEpisodeLoading = true
+                            currentEpisodeIndex = index
+                            onSelectEpisode(index)
+                            sidePanel?.dismiss()
+                        }
+                    }
+                    episodeList.addView(tv)
+                }
+                episodeScroll.addView(episodeList)
+                root.addView(episodeScroll)
+            }
+            SidePanelType.SPEED -> {
+                val speedTitle = TextView(context).apply {
+                    setTextColor(0xFFfe8027.toInt())
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                    text = "倍速"
+                    setPadding(0, dp(4), 0, dp(8))
+                }
+                root.addView(speedTitle)
+                speedOptions.forEach { s ->
+                    val tv = TextView(context).apply {
+                        setTextColor(if (s == currentSpeed) 0xFFfe8027.toInt() else Color.WHITE)
+                        setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                        text = formatSpeed(s)
+                        setPadding(0, dp(8), 0, dp(8))
+                        setOnClickListener {
+                            currentSpeed = s
+                            onSpeedChange(s)
+                            speedBtn.text = formatSpeed(s)
+                            sidePanel?.dismiss()
+                        }
+                    }
+                    root.addView(tv)
+                }
+            }
+        }
+        return root
     }
 
     private fun toggleSpeedPopup() {
@@ -464,14 +640,14 @@ class VodControllerView(
     private fun makeIconBtn(icon: PlayerIconView.Icon, onClick: () -> Unit): PlayerIconView {
         val iconDp = when (icon) {
             PlayerIconView.Icon.PREVIOUS,
-            PlayerIconView.Icon.NEXT -> 20
-            PlayerIconView.Icon.VOLUME -> 25
-            PlayerIconView.Icon.MUTED -> 26
+            PlayerIconView.Icon.NEXT -> 26
+            PlayerIconView.Icon.VOLUME -> 21
+            PlayerIconView.Icon.MUTED -> 21
             PlayerIconView.Icon.FULLSCREEN,
             PlayerIconView.Icon.EXIT_FULLSCREEN -> 22
             PlayerIconView.Icon.LOCK,
             PlayerIconView.Icon.UNLOCK,
-            PlayerIconView.Icon.ROTATE -> 24
+            PlayerIconView.Icon.ROTATE -> 22
             else -> 18
         }
         return PlayerIconView(context, icon, iconDp).apply {
@@ -488,6 +664,13 @@ class VodControllerView(
         GradientDrawable.Orientation.TOP_BOTTOM,
         intArrayOf(0x00000000, 0xCC000000.toInt())
     )
+
+    /** 切集图标的半透明圆形背景（容器为 36×36dp 正方形）。 */
+    private fun episodeIconBackground() = GradientDrawable().apply {
+        shape = GradientDrawable.RECTANGLE
+        setColor(0x66000000)
+        cornerRadius = dp(18).toFloat()
+    }
 
     private fun dp(v: Int): Int {
         return TypedValue.applyDimension(

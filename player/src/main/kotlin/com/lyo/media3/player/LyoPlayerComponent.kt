@@ -67,6 +67,8 @@ class LyoPlayerComponent(
     /** 点播 / 直播控制层 */
     private var vodController: VodControllerView? = null
     private var liveController: LiveControllerView? = null
+    private var propEpisodes: List<String> = emptyList()
+    private var propEpisodeIndex: Int = -1
 
     /** 手势：双击快退 / 快进、长按临时倍速 */
     private var gesture: GestureController? = null
@@ -329,6 +331,23 @@ class LyoPlayerComponent(
     @UniComponentProp(name = "longPressSpeed")
     fun setLongPressSpeedProp(speed: Float) {
         longPressSpeed = speed.coerceIn(1f, 4f)
+    }
+
+    @UniComponentProp(name = "episodes")
+    fun setEpisodesProp(episodes: com.alibaba.fastjson.JSONArray) {
+        val names = mutableListOf<String>()
+        for (i in 0 until episodes.size) {
+            val item = episodes.getJSONObject(i)
+            names.add(item?.getString("name") ?: "")
+        }
+        propEpisodes = names
+        vodController?.setEpisodes(propEpisodes)
+    }
+
+    @UniComponentProp(name = "episodeIndex")
+    fun setEpisodeIndexProp(index: Int) {
+        propEpisodeIndex = index
+        vodController?.setCurrentEpisodeIndex(propEpisodeIndex)
     }
 
     // ===== 方法（@UniJSMethod，§7.2） =====
@@ -874,6 +893,10 @@ class LyoPlayerComponent(
                         },
                         onPrevEpisode = { fireEvent("prevepisode") },
                         onNextEpisode = { fireEvent("nextepisode") },
+                        onSelectEpisode = { index ->
+                            vodController?.setEpisodeLoading(true)
+                            fireEvent("selectepisode", mapOf("detail" to mapOf("index" to index)))
+                        },
                         onMuteToggle = { m ->
                             propMuted = m
                             manager.setMuted(m)
@@ -894,6 +917,8 @@ class LyoPlayerComponent(
                     setTitle(propTitle)
                     setMuted(propMuted)
                     setSpeed(lastUserSpeed)
+                    setEpisodes(propEpisodes)
+                    setCurrentEpisodeIndex(propEpisodeIndex)
                     setPlaying(manager.getState()["isPlaying"] == true)
                     show()
                 }
@@ -954,12 +979,14 @@ class LyoPlayerComponent(
             PlayerManager.State.PLAYING -> {
                 vodController?.setPlaying(true)
                 showVodLoading(false)
+                vodController?.setEpisodeLoading(false)
                 liveController?.setPlaying(true)
                 liveController?.showLoading(false)
             }
             PlayerManager.State.PAUSED, PlayerManager.State.ENDED -> {
                 vodController?.setPlaying(false)
                 showVodLoading(false)
+                vodController?.setEpisodeLoading(false)
                 liveController?.setPlaying(false)
                 liveController?.showLoading(false)
             }
