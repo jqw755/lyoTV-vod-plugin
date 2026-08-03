@@ -13,7 +13,6 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import android.widget.GridLayout
 import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.ScrollView
@@ -203,9 +202,10 @@ class VodControllerView(
             setSize(thumbDiameter, thumbDiameter)
         }
         seekBar = SeekBar(context).apply {
-            // 15dp 圆点只需要 17dp 布局高度；避免把整个底栏向播放器中央顶起。
-            layoutParams = LinearLayout.LayoutParams(0, dp(21), 1f)
-            minHeight = dp(21)
+            // 给 15dp thumb 上下各留出 4dp 安全空间，避免部分 ROM 的 SeekBar 内部绘制越界被裁切。
+            layoutParams = LinearLayout.LayoutParams(0, dp(25), 1f)
+            minHeight = dp(25)
+            setPadding(paddingLeft, dp(2), paddingRight, dp(2))
             max = 1000
             setProgressDrawable(progressDrawable)
             maxHeight = trackHeight
@@ -247,7 +247,7 @@ class VodControllerView(
             val speedIcon = resolvePlayerDrawable(context, "lyo_ic_speed")
             if (speedIcon != 0) {
                 val drawable = resources.getDrawable(speedIcon, context.theme).apply {
-                    setBounds(0, 0, dp(34), dp(34))
+                    setBounds(0, 0, dp(37), dp(37))
                 }
                 setCompoundDrawablesRelative(drawable, null, null, null)
             }
@@ -516,11 +516,8 @@ class VodControllerView(
                         1f,
                     )
                 }
-                // 固定四列即可满足“一行多个、自动换行”，避免维护自定义测量和布局算法。
-                val episodeList = GridLayout(context).apply {
-                    columnCount = 4
-                    alignmentMode = GridLayout.ALIGN_BOUNDS
-                    useDefaultMargins = false
+                val episodeList = LinearLayout(context).apply {
+                    orientation = LinearLayout.VERTICAL
                 }
                 episodes.forEachIndexed { index, name ->
                     val tv = TextView(context).apply {
@@ -547,17 +544,28 @@ class VodControllerView(
                             sidePanel?.dismiss()
                         }
                     }
-                    episodeList.addView(tv, GridLayout.LayoutParams().apply {
-                        width = 0
-                        height = GridLayout.LayoutParams.WRAP_CONTENT
-                        columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
-                        setMargins(0, 0, dp(8), dp(8))
+                    episodeList.addView(tv, LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                    ).apply {
+                        bottomMargin = dp(8)
                     })
                 }
                 episodeScroll.addView(episodeList)
                 root.addView(episodeScroll)
             }
             SidePanelType.SPEED -> {
+                val speedScroll = ScrollView(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        0,
+                        1f,
+                    )
+                    isFillViewport = true
+                }
+                val speedList = LinearLayout(context).apply {
+                    orientation = LinearLayout.VERTICAL
+                }
                 speedOptions.forEach { s ->
                     val tv = TextView(context).apply {
                         val selected = s == currentSpeed
@@ -581,8 +589,10 @@ class VodControllerView(
                             sidePanel?.dismiss()
                         }
                     }
-                    root.addView(tv)
+                    speedList.addView(tv)
                 }
+                speedScroll.addView(speedList)
+                root.addView(speedScroll)
             }
         }
         return root

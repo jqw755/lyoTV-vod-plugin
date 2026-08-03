@@ -99,7 +99,7 @@ class LyoPlayerView @JvmOverloads constructor(
         val speedIcon = resources.getIdentifier("lyo_ic_speed", "drawable", context.packageName)
         if (speedIcon != 0) {
             val drawable = resources.getDrawable(speedIcon, context.theme).apply {
-                setBounds(0, 0, dp(20), dp(20))
+                setBounds(0, 0, dp(24), dp(24))
             }
             setCompoundDrawablesRelative(null, null, drawable, null)
         }
