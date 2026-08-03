@@ -71,6 +71,7 @@ class LiveControllerView(
             setPadding(dp(3), dp(6), dp(21), dp(6))
             background = topGradient()
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.TOP)
+            translationY = -dp(3).toFloat()
         }
         titleText = TextView(context).apply {
             setTextColor(Color.WHITE)
@@ -84,7 +85,7 @@ class LiveControllerView(
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
             setPadding(dp(8), 0, dp(8), 0)
         }
-        backBtn = PlayerIconView(context, PlayerIconView.Icon.BACK, 24).apply {
+        backBtn = PlayerIconView(context, PlayerIconView.Icon.BACK).apply {
             setOnClickListener {
                 if (isFullscreen) onFullscreenToggle(false) else onBack()
                 show()
@@ -97,8 +98,8 @@ class LiveControllerView(
         topBar.addView(lineBadge)
 
         // 中央播放按钮：纯矢量图标，无半透明按钮底
-        centerPlayBtn = PlayerIconView(context, PlayerIconView.Icon.PLAY, 42).apply {
-            layoutParams = LayoutParams(dp(72), dp(72), Gravity.CENTER)
+        centerPlayBtn = PlayerIconView(context, PlayerIconView.Icon.PLAY).apply {
+            layoutParams = LayoutParams(dp(68), dp(68), Gravity.CENTER)
             setOnClickListener {
                 if (isPlaying) onPauseToggle() else onPlayToggle()
                 show()
@@ -243,14 +244,7 @@ class LiveControllerView(
     }
 
     private fun makeIconBtn(icon: PlayerIconView.Icon, onClick: () -> Unit): PlayerIconView {
-        val iconDp = when (icon) {
-            PlayerIconView.Icon.VOLUME -> 25
-            PlayerIconView.Icon.MUTED -> 26
-            PlayerIconView.Icon.FULLSCREEN,
-            PlayerIconView.Icon.EXIT_FULLSCREEN -> 22
-            else -> 18
-        }
-        return PlayerIconView(context, icon, iconDp).apply {
+        return PlayerIconView(context, icon).apply {
             setOnClickListener { onClick(); show() }
         }
     }

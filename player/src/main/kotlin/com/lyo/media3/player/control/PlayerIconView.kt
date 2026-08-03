@@ -14,7 +14,6 @@ import android.widget.ImageView
 class PlayerIconView(
     context: Context,
     icon: Icon,
-    private val baseIconDp: Int = 16,
 ) : ImageView(context) {
 
     enum class Icon {
@@ -60,23 +59,25 @@ class PlayerIconView(
 
     private fun applySize(value: Icon) {
         // 中央播放按钮保持 40dp；切换为暂停态时只将暂停图案增大 2dp。
-        val iconDp = when {
-            value == Icon.PAUSE && baseIconDp > 24 -> baseIconDp + 2
+        val iconDp = when (value) {
+            Icon.PLAY, Icon.PAUSE -> 42
+            Icon.PREVIOUS, Icon.NEXT -> 20
+            Icon.MUTED -> 30
             // 音量按钮创建时是 VOLUME，切到 MUTED 后仍沿用构造时的 baseIconDp。
             // 静音态必须在这里单独放大，修改 makeIconBtn(MUTED) 不会影响已创建的按钮。
-            value == Icon.MUTED -> baseIconDp + 10
-            else -> baseIconDp
+            else -> 24
         }
         // 切集按钮用正方形容器，配合圆角=半边长可呈现完美圆形背景。
         val isEpisode = value == Icon.PREVIOUS || value == Icon.NEXT
+        val isCenterPlay = value == Icon.PLAY || value == Icon.PAUSE
         val containerWidth = when {
             isEpisode -> 36
-            baseIconDp > 24 -> 72
+            isCenterPlay -> 72
             else -> 40
         }
         val containerHeight = when {
             isEpisode -> 36
-            baseIconDp > 24 -> 72
+            isCenterPlay -> 72
             else -> 36
         }
         desiredWidthPx = dp(containerWidth)

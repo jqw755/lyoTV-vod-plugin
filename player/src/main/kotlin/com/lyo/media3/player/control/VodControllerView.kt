@@ -105,6 +105,7 @@ class VodControllerView(
             setPadding(dp(12), dp(6), dp(12), dp(6))
             background = topGradient()
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.TOP)
+            translationY = -dp(3).toFloat()
         }
         titleText = TextView(context).apply {
             setTextColor(Color.WHITE)
@@ -113,7 +114,7 @@ class VodControllerView(
             ellipsize = android.text.TextUtils.TruncateAt.END
             layoutParams = LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f)
         }
-        backBtn = PlayerIconView(context, PlayerIconView.Icon.BACK, 24).apply {
+        backBtn = PlayerIconView(context, PlayerIconView.Icon.BACK).apply {
             setOnClickListener {
                 if (isFullscreen) onFullscreenToggle(false) else onBack()
                 show()
@@ -123,7 +124,7 @@ class VodControllerView(
         topBar.addView(titleText)
 
         // 中央播放按钮：只显示图标，不添加圆形/半透明遮罩
-        centerPlayBtn = PlayerIconView(context, PlayerIconView.Icon.PLAY, 42).apply {
+        centerPlayBtn = PlayerIconView(context, PlayerIconView.Icon.PLAY).apply {
             setOnClickListener {
                 if (isPlaying) onPauseToggle() else onPlayToggle()
                 show()
@@ -158,7 +159,8 @@ class VodControllerView(
         centerControls = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            layoutParams = LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.CENTER)
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.CENTER)
+            translationY = -dp(3).toFloat()
             addView(prevBtn)
             addView(centerPlayBtn, LinearLayout.LayoutParams(dp(72), dp(72)).apply {
                 marginStart = dp(40)
@@ -241,7 +243,7 @@ class VodControllerView(
             val speedIcon = resolvePlayerDrawable(context, "lyo_ic_speed")
             if (speedIcon != 0) {
                 val drawable = resources.getDrawable(speedIcon, context.theme).apply {
-                    setBounds(0, 0, dp(40), dp(40))
+                    setBounds(0, 0, dp(34), dp(34))
                 }
                 setCompoundDrawablesRelative(drawable, null, null, null)
             }
@@ -255,7 +257,7 @@ class VodControllerView(
         val progressRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            translationY = dp(4).toFloat()
+            translationY = -dp(8).toFloat()
             addView(currentTimeText)
             addView(seekBar)
             addView(durationText)
@@ -267,10 +269,10 @@ class VodControllerView(
             addView(episodeBtn, LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
             addView(speedBtn)
             addView(muteBtn, LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
-                marginStart = dp(5)
+                marginStart = dp(10)
             })
             addView(fullscreenBtn, LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
-                marginStart = dp(5)
+                marginStart = dp(10)
             })
         }
         bottomBar.addView(progressRow)
@@ -287,6 +289,7 @@ class VodControllerView(
                 LayoutParams.WRAP_CONTENT,
                 Gravity.END or Gravity.CENTER_VERTICAL,
             ).apply { marginEnd = dp(12) }
+            translationY = -dp(3).toFloat()
             addView(lockBtn, LinearLayout.LayoutParams(dp(40), dp(36)).apply {
                 bottomMargin = dp(14)
             })
@@ -487,7 +490,7 @@ class VodControllerView(
         if (type == SidePanelType.EPISODES) {
             // 原生层按播放器实际宽度换算 200rpx（设计基准宽度 750rpx）。
             panel.configure(
-                widthPx = (hostView.width * 200f / 750f).toInt(),
+                widthPx = (hostView.width * 200f / 750f).toInt() + dp(30),
                 backgroundColor = Color.WHITE,
             )
         } else {
@@ -509,13 +512,6 @@ class VodControllerView(
         }
         when (type) {
             SidePanelType.EPISODES -> {
-                val episodeTitle = TextView(context).apply {
-                    setTextColor(0xFFfe8027.toInt())
-                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
-                    text = "选集"
-                    setPadding(0, dp(4), 0, dp(8))
-                }
-                root.addView(episodeTitle)
                 val episodeScroll = ScrollView(context).apply {
                     layoutParams = LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT,
@@ -523,25 +519,21 @@ class VodControllerView(
                         1f,
                     )
                 }
-                val episodeList = LinearLayout(context).apply {
-                    orientation = LinearLayout.VERTICAL
-                }
+                val episodeList = EpisodeFlowLayout(context)
                 episodes.forEachIndexed { index, name ->
                     val tv = TextView(context).apply {
-                        setTextColor(if (index == currentEpisodeIndex) 0xFFfe8027.toInt() else Color.BLACK)
+                        val selected = index == currentEpisodeIndex
+                        setTextColor(if (selected) Color.WHITE else 0xFF333333.toInt())
                         setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
                         text = name
                         maxLines = 1
                         ellipsize = android.text.TextUtils.TruncateAt.END
-                        setPadding(0, dp(10), 0, dp(10))
-                        // 浅灰横线分割
-                        val divider = android.graphics.drawable.GradientDrawable().apply {
-                            shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-                            setColor(0x22000000)
-                            setSize(0, 1)
+                        gravity = Gravity.CENTER
+                        setPadding(dp(12), dp(8), dp(12), dp(8))
+                        background = GradientDrawable().apply {
+                            setColor(if (selected) 0xFFfe8027.toInt() else 0xFFF2F2F2.toInt())
+                            cornerRadius = dp(6).toFloat()
                         }
-                        setCompoundDrawablesRelative(null, null, null, divider)
-                        compoundDrawablePadding = 0
                         setOnClickListener {
                             // 当前集点中拦截，避免再次刷新播放该集
                             if (index == currentEpisodeIndex) return@setOnClickListener
@@ -553,7 +545,13 @@ class VodControllerView(
                             sidePanel?.dismiss()
                         }
                     }
-                    episodeList.addView(tv)
+                    episodeList.addView(tv, ViewGroup.MarginLayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ).apply {
+                        rightMargin = dp(8)
+                        bottomMargin = dp(8)
+                    })
                 }
                 episodeScroll.addView(episodeList)
                 root.addView(episodeScroll)
@@ -638,19 +636,7 @@ class VodControllerView(
     }
 
     private fun makeIconBtn(icon: PlayerIconView.Icon, onClick: () -> Unit): PlayerIconView {
-        val iconDp = when (icon) {
-            PlayerIconView.Icon.PREVIOUS,
-            PlayerIconView.Icon.NEXT -> 26
-            PlayerIconView.Icon.VOLUME -> 21
-            PlayerIconView.Icon.MUTED -> 21
-            PlayerIconView.Icon.FULLSCREEN,
-            PlayerIconView.Icon.EXIT_FULLSCREEN -> 22
-            PlayerIconView.Icon.LOCK,
-            PlayerIconView.Icon.UNLOCK,
-            PlayerIconView.Icon.ROTATE -> 22
-            else -> 18
-        }
-        return PlayerIconView(context, icon, iconDp).apply {
+        return PlayerIconView(context, icon).apply {
             setOnClickListener { onClick(); show() }
         }
     }
@@ -702,5 +688,70 @@ class VodControllerView(
 
     private fun formatSpeed(speed: Float): String {
         return BigDecimal(speed.toString()).stripTrailingZeros().toPlainString() + "x"
+    }
+}
+
+/** 简单流式布局：选集按钮按内容宽度横向排列，空间不足时自动换行。 */
+private class EpisodeFlowLayout(context: Context) : ViewGroup(context) {
+    override fun generateDefaultLayoutParams(): LayoutParams =
+        MarginLayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
+
+    override fun generateLayoutParams(p: LayoutParams?): LayoutParams =
+        p?.let(::MarginLayoutParams) ?: generateDefaultLayoutParams()
+
+    override fun checkLayoutParams(p: LayoutParams?): Boolean = p is MarginLayoutParams
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        val availableWidth = MeasureSpec.getSize(widthMeasureSpec) - paddingLeft - paddingRight
+        var lineWidth = 0
+        var lineHeight = 0
+        var totalHeight = paddingTop + paddingBottom
+        var maxLineWidth = 0
+        for (i in 0 until childCount) {
+            val child = getChildAt(i)
+            if (child.visibility == GONE) continue
+            measureChildWithMargins(child, widthMeasureSpec, 0, heightMeasureSpec, totalHeight)
+            val lp = child.layoutParams as MarginLayoutParams
+            val childWidth = child.measuredWidth + lp.leftMargin + lp.rightMargin
+            val childHeight = child.measuredHeight + lp.topMargin + lp.bottomMargin
+            if (lineWidth > 0 && lineWidth + childWidth > availableWidth) {
+                maxLineWidth = maxOf(maxLineWidth, lineWidth)
+                totalHeight += lineHeight
+                lineWidth = 0
+                lineHeight = 0
+            }
+            lineWidth += childWidth
+            lineHeight = maxOf(lineHeight, childHeight)
+        }
+        maxLineWidth = maxOf(maxLineWidth, lineWidth)
+        totalHeight += lineHeight
+        setMeasuredDimension(
+            resolveSize(maxLineWidth + paddingLeft + paddingRight, widthMeasureSpec),
+            resolveSize(totalHeight, heightMeasureSpec),
+        )
+    }
+
+    override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
+        val availableWidth = r - l - paddingLeft - paddingRight
+        var x = paddingLeft
+        var y = paddingTop
+        var lineHeight = 0
+        for (i in 0 until childCount) {
+            val child = getChildAt(i)
+            if (child.visibility == GONE) continue
+            val lp = child.layoutParams as MarginLayoutParams
+            val childWidth = child.measuredWidth + lp.leftMargin + lp.rightMargin
+            val childHeight = child.measuredHeight + lp.topMargin + lp.bottomMargin
+            if (x > paddingLeft && x - paddingLeft + childWidth > availableWidth) {
+                x = paddingLeft
+                y += lineHeight
+                lineHeight = 0
+            }
+            val left = x + lp.leftMargin
+            val top = y + lp.topMargin
+            child.layout(left, top, left + child.measuredWidth, top + child.measuredHeight)
+            x += childWidth
+            lineHeight = maxOf(lineHeight, childHeight)
+        }
     }
 }
