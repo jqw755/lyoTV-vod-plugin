@@ -61,8 +61,6 @@ class PlayerIconView(
         // 中央播放按钮保持 40dp；切换为暂停态时只将暂停图案增大 2dp。
         val iconDp = when (value) {
             Icon.PLAY, Icon.PAUSE -> 42
-            Icon.PREVIOUS, Icon.NEXT -> 20
-            Icon.MUTED -> 30
             // 音量按钮创建时是 VOLUME，切到 MUTED 后仍沿用构造时的 baseIconDp。
             // 静音态必须在这里单独放大，修改 makeIconBtn(MUTED) 不会影响已创建的按钮。
             else -> 24
@@ -84,12 +82,15 @@ class PlayerIconView(
         desiredHeightPx = dp(containerHeight)
         val horizontalPadding = ((containerWidth - iconDp) / 2).coerceAtLeast(0)
         val verticalPadding = ((containerHeight - iconDp) / 2).coerceAtLeast(0)
+        // 播放三角形虽然矢量边界居中，但视觉重心偏左；仅将图案向右补偿 2dp。
+        // 切换为暂停时恢复对称 padding，按钮容器本身始终保持居中且尺寸不变。
+        val opticalOffset = if (value == Icon.PLAY) 2 else 0
         // 必须固定按钮容器尺寸。仅设置 minimumWidth/minimumHeight 时，
         // ImageView 会按 PNG 固有尺寸继续扩张，padding 无法把图标限制到 iconDp。
         setPadding(
-            dp(horizontalPadding),
+            dp(horizontalPadding + opticalOffset),
             dp(verticalPadding),
-            dp(horizontalPadding),
+            dp((horizontalPadding - opticalOffset).coerceAtLeast(0)),
             dp(verticalPadding),
         )
         minimumWidth = dp(containerWidth)

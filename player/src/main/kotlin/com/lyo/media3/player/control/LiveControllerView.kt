@@ -123,8 +123,14 @@ class LiveControllerView(
         }
         bottomBar.addView(liveEdgeBtn)
         bottomBar.addView(View(context), LinearLayout.LayoutParams(0, 1, 1f))
-        bottomBar.addView(muteBtn)
-        bottomBar.addView(fullscreenBtn)
+        bottomBar.addView(muteBtn, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+        ).apply { marginStart = dp(14) })
+        bottomBar.addView(fullscreenBtn, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+        ).apply { marginStart = dp(14) })
 
         // 加载 / 错误状态
         loadingView = ProgressBar(context).apply {

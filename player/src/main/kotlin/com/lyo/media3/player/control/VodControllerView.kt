@@ -13,6 +13,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.GridLayout
 import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.ScrollView
@@ -134,6 +135,8 @@ class VodControllerView(
         // 底部栏：上方进度，下方常用操作
         bottomBar = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
+            clipChildren = false
+            clipToPadding = false
             // 左右使用相同边距；全屏安全区由外层容器统一补偿，避免竖屏操作栏偏左。
             setPadding(dp(12), dp(4), dp(12), dp(4))
             background = bottomGradient()
@@ -201,7 +204,8 @@ class VodControllerView(
         }
         seekBar = SeekBar(context).apply {
             // 15dp 圆点只需要 17dp 布局高度；避免把整个底栏向播放器中央顶起。
-            layoutParams = LinearLayout.LayoutParams(0, dp(17), 1f)
+            layoutParams = LinearLayout.LayoutParams(0, dp(21), 1f)
+            minHeight = dp(21)
             max = 1000
             setProgressDrawable(progressDrawable)
             maxHeight = trackHeight
@@ -269,10 +273,10 @@ class VodControllerView(
             addView(episodeBtn, LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
             addView(speedBtn)
             addView(muteBtn, LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
-                marginStart = dp(10)
+                marginStart = dp(14)
             })
             addView(fullscreenBtn, LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
-                marginStart = dp(10)
+                marginStart = dp(14)
             })
         }
         bottomBar.addView(progressRow)
@@ -469,10 +473,7 @@ class VodControllerView(
     }
 
     private fun onSpeedClick() {
-        if (!isFullscreen || isLocked) {
-            toggleSpeedPopup()
-            return
-        }
+        if (isLocked) return
         openSidePanel(SidePanelType.SPEED)
     }
 
@@ -487,15 +488,11 @@ class VodControllerView(
                 show()
             },
         ).also { sidePanel = it }
-        if (type == SidePanelType.EPISODES) {
-            // 原生层按播放器实际宽度换算 200rpx（设计基准宽度 750rpx）。
-            panel.configure(
-                widthPx = (hostView.width * 200f / 750f).toInt() + dp(30),
-                backgroundColor = Color.WHITE,
-            )
-        } else {
-            panel.configure()
-        }
+        // 选集和倍速共用相同的窄白色侧栏，只改变内部排列方式。
+        panel.configure(
+            widthPx = (hostView.width * 200f / 750f).toInt() + dp(30),
+            backgroundColor = Color.WHITE,
+        )
         panel.setContent(buildPanelContent(type))
         panel.show(hostView)
         cancelAutoHide()
@@ -519,7 +516,12 @@ class VodControllerView(
                         1f,
                     )
                 }
-                val episodeList = EpisodeFlowLayout(context)
+                // 固定四列即可满足“一行多个、自动换行”，避免维护自定义测量和布局算法。
+                val episodeList = GridLayout(context).apply {
+                    columnCount = 4
+                    alignmentMode = GridLayout.ALIGN_BOUNDS
+                    useDefaultMargins = false
+                }
                 episodes.forEachIndexed { index, name ->
                     val tv = TextView(context).apply {
                         val selected = index == currentEpisodeIndex
@@ -545,31 +547,33 @@ class VodControllerView(
                             sidePanel?.dismiss()
                         }
                     }
-                    episodeList.addView(tv, ViewGroup.MarginLayoutParams(
-                        ViewGroup.LayoutParams.WRAP_CONTENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ).apply {
-                        rightMargin = dp(8)
-                        bottomMargin = dp(8)
+                    episodeList.addView(tv, GridLayout.LayoutParams().apply {
+                        width = 0
+                        height = GridLayout.LayoutParams.WRAP_CONTENT
+                        columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
+                        setMargins(0, 0, dp(8), dp(8))
                     })
                 }
                 episodeScroll.addView(episodeList)
                 root.addView(episodeScroll)
             }
             SidePanelType.SPEED -> {
-                val speedTitle = TextView(context).apply {
-                    setTextColor(0xFFfe8027.toInt())
-                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
-                    text = "倍速"
-                    setPadding(0, dp(4), 0, dp(8))
-                }
-                root.addView(speedTitle)
                 speedOptions.forEach { s ->
                     val tv = TextView(context).apply {
-                        setTextColor(if (s == currentSpeed) 0xFFfe8027.toInt() else Color.WHITE)
+                        val selected = s == currentSpeed
+                        setTextColor(if (selected) Color.WHITE else 0xFF333333.toInt())
                         setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
                         text = formatSpeed(s)
-                        setPadding(0, dp(8), 0, dp(8))
+                        setPadding(dp(12), dp(10), dp(12), dp(10))
+                        gravity = Gravity.CENTER
+                        background = GradientDrawable().apply {
+                            setColor(if (selected) 0xFFfe8027.toInt() else 0xFFF2F2F2.toInt())
+                            cornerRadius = dp(6).toFloat()
+                        }
+                        layoutParams = LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                        ).apply { bottomMargin = dp(8) }
                         setOnClickListener {
                             currentSpeed = s
                             onSpeedChange(s)
@@ -688,70 +692,5 @@ class VodControllerView(
 
     private fun formatSpeed(speed: Float): String {
         return BigDecimal(speed.toString()).stripTrailingZeros().toPlainString() + "x"
-    }
-}
-
-/** 简单流式布局：选集按钮按内容宽度横向排列，空间不足时自动换行。 */
-private class EpisodeFlowLayout(context: Context) : ViewGroup(context) {
-    override fun generateDefaultLayoutParams(): LayoutParams =
-        MarginLayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
-
-    override fun generateLayoutParams(p: LayoutParams?): LayoutParams =
-        p?.let(::MarginLayoutParams) ?: generateDefaultLayoutParams()
-
-    override fun checkLayoutParams(p: LayoutParams?): Boolean = p is MarginLayoutParams
-
-    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        val availableWidth = MeasureSpec.getSize(widthMeasureSpec) - paddingLeft - paddingRight
-        var lineWidth = 0
-        var lineHeight = 0
-        var totalHeight = paddingTop + paddingBottom
-        var maxLineWidth = 0
-        for (i in 0 until childCount) {
-            val child = getChildAt(i)
-            if (child.visibility == GONE) continue
-            measureChildWithMargins(child, widthMeasureSpec, 0, heightMeasureSpec, totalHeight)
-            val lp = child.layoutParams as MarginLayoutParams
-            val childWidth = child.measuredWidth + lp.leftMargin + lp.rightMargin
-            val childHeight = child.measuredHeight + lp.topMargin + lp.bottomMargin
-            if (lineWidth > 0 && lineWidth + childWidth > availableWidth) {
-                maxLineWidth = maxOf(maxLineWidth, lineWidth)
-                totalHeight += lineHeight
-                lineWidth = 0
-                lineHeight = 0
-            }
-            lineWidth += childWidth
-            lineHeight = maxOf(lineHeight, childHeight)
-        }
-        maxLineWidth = maxOf(maxLineWidth, lineWidth)
-        totalHeight += lineHeight
-        setMeasuredDimension(
-            resolveSize(maxLineWidth + paddingLeft + paddingRight, widthMeasureSpec),
-            resolveSize(totalHeight, heightMeasureSpec),
-        )
-    }
-
-    override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
-        val availableWidth = r - l - paddingLeft - paddingRight
-        var x = paddingLeft
-        var y = paddingTop
-        var lineHeight = 0
-        for (i in 0 until childCount) {
-            val child = getChildAt(i)
-            if (child.visibility == GONE) continue
-            val lp = child.layoutParams as MarginLayoutParams
-            val childWidth = child.measuredWidth + lp.leftMargin + lp.rightMargin
-            val childHeight = child.measuredHeight + lp.topMargin + lp.bottomMargin
-            if (x > paddingLeft && x - paddingLeft + childWidth > availableWidth) {
-                x = paddingLeft
-                y += lineHeight
-                lineHeight = 0
-            }
-            val left = x + lp.leftMargin
-            val top = y + lp.topMargin
-            child.layout(left, top, left + child.measuredWidth, top + child.measuredHeight)
-            x += childWidth
-            lineHeight = maxOf(lineHeight, childHeight)
-        }
     }
 }
