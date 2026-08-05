@@ -90,7 +90,9 @@ class GestureController(
                         if (canHorizontalSeek()) GestureMode.HORIZONTAL_SEEK else GestureMode.NONE
                     } else if (canVerticalAdjust()) {
                         // 从屏幕顶部下拉是查看系统状态栏的系统手势，不能同时调节亮度/音量。
-                        if (e1.y <= dp(SYSTEM_EDGE_GUARD_DP)) {
+                        if (e1.y <= dp(SYSTEM_EDGE_GUARD_DP) ||
+                            e1.y >= view.height - dp(SYSTEM_EDGE_GUARD_DP)
+                        ) {
                             GestureMode.NONE
                         } else if (e1.x < view.width / 2f) {
                             GestureMode.BRIGHTNESS

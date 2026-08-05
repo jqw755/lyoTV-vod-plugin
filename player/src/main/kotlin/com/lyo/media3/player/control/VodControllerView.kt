@@ -88,7 +88,6 @@ class VodControllerView(
     private val lockBtn: PlayerIconView
     private val episodeBtn: TextView
     private val centerControls: FrameLayout
-    private val centerButtonRow: LinearLayout
     private val rightControls: LinearLayout
     private val titleText: TextView
 
@@ -168,23 +167,17 @@ class VodControllerView(
             setOnClickListener { onEpisodeClick() }
             visibility = View.GONE
         }
-        centerButtonRow = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-            // 整组按自身固定宽度由 FrameLayout 锚定到正中央；不依赖首次测量时的 MATCH_PARENT 宽度。
-            // 播放、暂停和 loading 都保留同一个 72dp 中心占位，状态切换不会带动两侧切集按钮位移。
-            layoutParams = FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, dp(72), Gravity.CENTER)
-            addView(prevBtn, LinearLayout.LayoutParams(dp(36), dp(36)))
-            addView(centerPlayBtn, LinearLayout.LayoutParams(dp(72), dp(72)).apply {
-                marginStart = dp(40)
-                marginEnd = dp(40)
-            })
-            addView(nextBtn, LinearLayout.LayoutParams(dp(36), dp(36)))
-        }
         centerControls = FrameLayout(context).apply {
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, dp(72), Gravity.CENTER)
             translationY = -dp(3).toFloat()
-            addView(centerButtonRow)
+            // 三个按钮各自锚定播放器几何中心，不再参与 LinearLayout 的首次测量。
+            addView(centerPlayBtn, FrameLayout.LayoutParams(dp(72), dp(72), Gravity.CENTER))
+            addView(prevBtn, FrameLayout.LayoutParams(dp(36), dp(36), Gravity.CENTER).apply {
+                prevBtn.translationX = -dp(64).toFloat()
+            })
+            addView(nextBtn, FrameLayout.LayoutParams(dp(36), dp(36), Gravity.CENTER).apply {
+                nextBtn.translationX = dp(64).toFloat()
+            })
         }
         currentTimeText = TextView(context).apply {
             setTextColor(Color.WHITE)
@@ -219,9 +212,9 @@ class VodControllerView(
         }
         seekBar = SeekBar(context).apply {
             // 给 15dp thumb 上下各留出 4dp 安全空间，避免部分 ROM 的 SeekBar 内部绘制越界被裁切。
-            layoutParams = LinearLayout.LayoutParams(0, dp(25), 1f)
-            minHeight = dp(25)
-            setPadding(paddingLeft, dp(2), paddingRight, dp(2))
+            layoutParams = LinearLayout.LayoutParams(0, dp(41), 1f)
+            minHeight = dp(41)
+            setPadding(paddingLeft, dp(10), paddingRight, dp(10))
             max = 1000
             setProgressDrawable(progressDrawable)
             maxHeight = trackHeight
@@ -276,7 +269,7 @@ class VodControllerView(
         }
         scaleBtn = TextView(context).apply {
             setTextColor(Color.WHITE)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
             text = currentScale.label
             gravity = Gravity.CENTER_VERTICAL
             includeFontPadding = false
@@ -297,9 +290,12 @@ class VodControllerView(
             gravity = Gravity.CENTER_VERTICAL or Gravity.END
             translationY = 0f
             // 画面比例文字固定在底部操作行左侧。
-            addView(View(context), LinearLayout.LayoutParams(0, 1, 1f))
             addView(scaleBtn)
-            addView(episodeBtn)
+            addView(episodeBtn, LinearLayout.LayoutParams(
+                LayoutParams.WRAP_CONTENT,
+                LayoutParams.WRAP_CONTENT,
+            ).apply { marginStart = dp(12) })
+            addView(View(context), LinearLayout.LayoutParams(0, 1, 1f))
             addView(speedBtn)
             addView(muteBtn, LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
                 marginStart = dp(14)
@@ -498,14 +494,10 @@ class VodControllerView(
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
-        val playParams = centerPlayBtn.layoutParams as? LinearLayout.LayoutParams ?: return
-        // FongMi 横屏使用 40dp；竖屏空间较窄，缩为 20dp，避免切集按钮离播放键过远。
         val margin = dp(if (w > h) 24 else 10)
-        if (playParams.marginStart != margin || playParams.marginEnd != margin) {
-            playParams.marginStart = margin
-            playParams.marginEnd = margin
-            centerPlayBtn.layoutParams = playParams
-        }
+        val offset = dp(54) + margin
+        prevBtn.translationX = -offset.toFloat()
+        nextBtn.translationX = offset.toFloat()
         applyFullscreenChromeLayout(w, h)
     }
 

@@ -40,7 +40,7 @@ public class SiteApi {
     /** 用户明确不需要的网盘搜索站点，仅按订阅中的站点名称判断。 */
     public static boolean isBlockedSearchSite(@NonNull Site site) {
         String name = site.getName();
-        return name.contains("盘") || name.contains("哔哔");
+        return name.contains("盘") || name.contains("哔哔") || name.contains("玩偶哥哥");
     }
 
     public static String call(@NonNull Site site, @NonNull ArrayMap<String, String> params) throws IOException {
