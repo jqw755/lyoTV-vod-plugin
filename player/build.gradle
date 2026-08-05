@@ -46,6 +46,7 @@ dependencies {
     api libs.media3.exoplayer
     api libs.media3.exoplayer.hls
     api libs.media3.common
+    api libs.media3.ui
 
     // uni-app 原生插件 SDK 仅编译期引用（宿主已自带）
     compileOnly fileTree(dir: "libs", include: ["*.aar", "*.jar"])

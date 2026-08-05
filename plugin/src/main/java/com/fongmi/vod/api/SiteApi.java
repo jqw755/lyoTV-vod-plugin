@@ -37,6 +37,12 @@ public class SiteApi {
 
     public static final String PUSH = "push_agent";
 
+    /** 用户明确不需要的网盘搜索站点，仅按订阅中的站点名称判断。 */
+    public static boolean isBlockedSearchSite(@NonNull Site site) {
+        String name = site.getName();
+        return name.contains("盘") || name.contains("哔哔");
+    }
+
     public static String call(@NonNull Site site, @NonNull ArrayMap<String, String> params) throws IOException {
         if (!site.getExt().isEmpty()) params.put("extend", site.getExt());
         Call call = site.getExt().length() <= 1000 ? OkHttp.newCall(site.getApi(), site.getHeader(), params) : OkHttp.newCall(site.getApi(), site.getHeader(), OkHttp.toBody(params));
@@ -196,7 +202,7 @@ public class SiteApi {
             SpiderDebug.log("search", searchContent);
             Result result = Result.fromJson(searchContent);
             for (Vod vod : result.getList()) vod.setSite(site);
-            return result;
+            return filterUnsupportedSearchResults(result);
         } else {
             ArrayMap<String, String> params = new ArrayMap<>();
             params.put("wd", keyword);
@@ -207,8 +213,21 @@ public class SiteApi {
             SpiderDebug.log("search", searchContent);
             Result result = fetchPic(site, Result.fromType(site.getType(), searchContent));
             for (Vod vod : result.getList()) vod.setSite(site);
-            return result;
+            return filterUnsupportedSearchResults(result);
         }
+    }
+
+    /**
+     * 本应用不支持网盘目录/action 交互。只依据 Fongmi 现有的结构化字段过滤，
+     * 不通过站点名称、key 或资源标题猜测，避免误伤普通影视搜索结果。
+     * 纯网盘站点过滤后返回空列表，前端完成搜索后会自动隐藏该站点。
+     */
+    private static Result filterUnsupportedSearchResults(Result result) {
+        List<Vod> filtered = result.getList().stream()
+                .filter(vod -> !vod.isFolder() && !vod.isAction())
+                .toList();
+        result.setList(filtered);
+        return result;
     }
 
     @NonNull

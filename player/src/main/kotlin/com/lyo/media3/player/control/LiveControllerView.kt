@@ -12,8 +12,10 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ProgressBar
+import android.widget.ScrollView
 import android.widget.TextView
 import com.lyo.media3.player.player.LyoPlayerView
+import com.lyo.media3.player.player.PlayerResizeMode
 
 /**
  * 直播控制层（§8.3）。
@@ -47,16 +49,27 @@ class LiveControllerView(
     private var isPlaying = false
     private var isMuted = false
     private var isFullscreen = false
+    private var currentScale = PlayerResizeMode.fromIndex(
+        context.getSharedPreferences("lyo_player", Context.MODE_PRIVATE).getInt(
+            "scale_live",
+            context.getSharedPreferences("lyo_player", Context.MODE_PRIVATE).getInt("scale_vod", 0),
+        )
+    )
+    private var sidePanel: LyoSidePanel? = null
+    private var fullscreenSafeHorizontal = 0
 
     private val topBar: LinearLayout
+    private val topChrome: FrameLayout
     private val centerPlayBtn: PlayerIconView
     private val bottomBar: LinearLayout
+    private val bottomChrome: FrameLayout
     private val titleText: TextView
     private val lineBadge: TextView
     private val muteBtn: PlayerIconView
     private val fullscreenBtn: PlayerIconView
     private val backBtn: PlayerIconView
     private val liveEdgeBtn: TextView
+    private val scaleBtn: TextView
     private val loadingView: ProgressBar
     private val errorText: TextView
 
@@ -69,7 +82,7 @@ class LiveControllerView(
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(3), dp(6), dp(21), dp(6))
-            background = topGradient()
+            background = null
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.TOP)
             translationY = -dp(3).toFloat()
         }
@@ -111,7 +124,7 @@ class LiveControllerView(
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(3), dp(4), dp(21), 0)
-            background = bottomGradient()
+            background = null
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.BOTTOM)
         }
         liveEdgeBtn = TextView(context).apply {
@@ -121,8 +134,19 @@ class LiveControllerView(
             setPadding(dp(12), dp(6), dp(12), dp(6))
             setOnClickListener { onGoLiveEdge(); show() }
         }
+        scaleBtn = TextView(context).apply {
+            setTextColor(Color.WHITE)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            text = currentScale.label
+            gravity = Gravity.CENTER_VERTICAL
+            includeFontPadding = false
+            setPadding(dp(10), dp(6), dp(10), dp(6))
+            setOnClickListener { openScalePanel() }
+            visibility = View.GONE
+        }
         bottomBar.addView(liveEdgeBtn)
         bottomBar.addView(View(context), LinearLayout.LayoutParams(0, 1, 1f))
+        bottomBar.addView(scaleBtn)
         bottomBar.addView(muteBtn, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.WRAP_CONTENT,
             LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -146,11 +170,25 @@ class LiveControllerView(
             layoutParams = LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.CENTER)
         }
 
-        addView(topBar)
+        topChrome = FrameLayout(context).apply {
+            background = topGradient()
+            clipChildren = false
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.TOP)
+            addView(topBar)
+        }
+        bottomChrome = FrameLayout(context).apply {
+            background = bottomGradient()
+            clipChildren = false
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.BOTTOM)
+            addView(bottomBar)
+        }
+
+        addView(topChrome)
         addView(centerPlayBtn)
-        addView(bottomBar)
+        addView(bottomChrome)
         addView(loadingView)
         addView(errorText)
+        hostView.setResizeMode(currentScale)
 
         visibility = View.GONE
         isShowing = false
@@ -163,6 +201,12 @@ class LiveControllerView(
 
     fun removeFromParent() {
         (parent as? ViewGroup)?.removeView(this)
+    }
+
+    fun setFullscreenSafePadding(horizontal: Int) {
+        fullscreenSafeHorizontal = horizontal.coerceAtLeast(0)
+        setPadding(0, 0, 0, 0)
+        applyFullscreenChromeLayout()
     }
 
     fun setTitle(title: String) {
@@ -186,6 +230,16 @@ class LiveControllerView(
     fun setFullscreen(fs: Boolean) {
         isFullscreen = fs
         fullscreenBtn.icon = if (fs) PlayerIconView.Icon.EXIT_FULLSCREEN else PlayerIconView.Icon.FULLSCREEN
+        scaleBtn.visibility = if (fs) View.VISIBLE else View.GONE
+        topBar.translationY = if (fs) dp(8).toFloat() else -dp(3).toFloat()
+        bottomBar.translationY = if (fs) -dp(8).toFloat() else 0f
+        applyFullscreenChromeLayout()
+    }
+
+    private fun applyFullscreenChromeLayout() {
+        val horizontalPadding = dp(12) + if (isFullscreen) fullscreenSafeHorizontal else 0
+        topBar.setPadding(horizontalPadding, dp(6), horizontalPadding, dp(6))
+        bottomBar.setPadding(horizontalPadding, dp(4), horizontalPadding, 0)
     }
 
     fun setPlaying(playing: Boolean) {
@@ -235,6 +289,63 @@ class LiveControllerView(
 
     private fun toggleFullscreen() {
         onFullscreenToggle(!isFullscreen)
+    }
+
+    private fun openScalePanel() {
+        val panel = sidePanel ?: LyoSidePanel(
+            context,
+            maxWidthDp = 240,
+            onDismiss = {
+                sidePanel = null
+                show()
+            },
+        ).also { sidePanel = it }
+        panel.configure(
+            widthPx = (hostView.width * 200f / 750f).toInt() + dp(30),
+            backgroundColor = Color.WHITE,
+        )
+        val root = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+        val scroll = ScrollView(context).apply {
+            isFillViewport = true
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1f,
+            )
+        }
+        val list = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+        PlayerResizeMode.values().forEach { mode ->
+            val tv = TextView(context).apply {
+                val selected = mode == currentScale
+                setTextColor(if (selected) Color.WHITE else 0xFF333333.toInt())
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                text = mode.label
+                gravity = Gravity.CENTER
+                setPadding(dp(12), dp(10), dp(12), dp(10))
+                background = GradientDrawable().apply {
+                    setColor(if (selected) 0xFFfe8027.toInt() else 0xFFF2F2F2.toInt())
+                    cornerRadius = dp(6).toFloat()
+                }
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                ).apply { bottomMargin = dp(8) }
+                setOnClickListener {
+                    currentScale = mode
+                    scaleBtn.text = mode.label
+                    hostView.setResizeMode(mode)
+                    context.getSharedPreferences("lyo_player", Context.MODE_PRIVATE)
+                        .edit().putInt("scale_live", mode.index).apply()
+                    sidePanel?.dismiss()
+                }
+            }
+            list.addView(tv)
+        }
+        scroll.addView(list)
+        root.addView(scroll)
+        panel.setContent(root)
+        panel.show(hostView)
+        cancelAutoHide()
     }
 
     private fun scheduleAutoHide() {

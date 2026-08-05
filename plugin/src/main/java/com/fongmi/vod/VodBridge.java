@@ -188,6 +188,7 @@ public class VodBridge {
             // 否则不支持的站点会返回空串拖慢整体；同时缩短 deadline 适配前端联想 5s 超时。
             List<Site> allSites = VodConfig.get().getSites().stream()
                 .filter(s -> s.getSearchable() != 0)
+                .filter(s -> !SiteApi.isBlockedSearchSite(s))
                 .filter(s -> !quick || s.isQuickSearch())
                 .toList();
             // quick 模式总时限 4s（前端 5s 超时留 1s 余量），普通模式 8s
@@ -240,7 +241,7 @@ public class VodBridge {
             String keyword = Json.safeString(args, "keyword");
             String siteKey = Json.safeString(args, "siteKey");
             Site site = VodConfig.get().getSite(siteKey);
-            if (TextUtils.isEmpty(site.getKey())) {
+            if (TextUtils.isEmpty(site.getKey()) || SiteApi.isBlockedSearchSite(site)) {
                 cb.invoke(ok(Result.list(new ArrayList<>()).toString()));
                 return;
             }

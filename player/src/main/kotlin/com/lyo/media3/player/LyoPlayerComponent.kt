@@ -606,16 +606,19 @@ class LyoPlayerComponent(
                                 ViewGroup.LayoutParams.MATCH_PARENT,
                             ),
                         )
+                        // nvue 原生组件从竖屏页面移入 window overlay 后，部分真机会继续保留
+                        // 旋转前的测量尺寸。MATCH_PARENT 本身不足以强制其在横屏后重新测量，
+                        // 会造成 hostView 高于屏幕：画面看似上方黑边偏大，底栏落到屏幕外，
+                        // 中间按钮和右侧按钮也会按错误宽高定位。始终以当前窗口容器的实际
+                        // 宽高重新约束播放器；安全区只留给控制层，不从视频尺寸中扣除。
                         addOnLayoutChangeListener { view, _, _, _, _, _, _, _, _ ->
-                            val availableWidth =
-                                (view.width - view.paddingLeft - view.paddingRight).coerceAtLeast(1)
-                            val availableHeight =
-                                (view.height - view.paddingTop - view.paddingBottom).coerceAtLeast(1)
+                            val targetWidth = view.width.coerceAtLeast(1)
+                            val targetHeight = view.height.coerceAtLeast(1)
                             val params = hostView.layoutParams as? FrameLayout.LayoutParams
-                            if (params?.width != availableWidth || params.height != availableHeight) {
+                            if (params?.width != targetWidth || params.height != targetHeight) {
                                 hostView.layoutParams = FrameLayout.LayoutParams(
-                                    availableWidth,
-                                    availableHeight,
+                                    targetWidth,
+                                    targetHeight,
                                     Gravity.TOP or Gravity.START,
                                 )
                             }
@@ -686,40 +689,22 @@ class LyoPlayerComponent(
      * 当前设备的安全区域内；导航栏临时滑出时 WindowInsets 也会重新下发。
      */
     private fun applyFullscreenSafeInsets(container: FrameLayout) {
-        container.setOnApplyWindowInsetsListener { view, insets ->
-            var left = insets.systemWindowInsetLeft
-            var right = insets.systemWindowInsetRight
-            var bottom = insets.systemWindowInsetBottom
-            var top = 0
-
+        // Fongmi 的视频层始终铺满窗口，刘海安全距离只作用于控制层，不能缩小画面容器。
+        container.setPadding(0, 0, 0, 0)
+        container.setOnApplyWindowInsetsListener { _, insets ->
+            var safe = 0
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 insets.displayCutout?.let { cutout ->
-                    left = maxOf(left, cutout.safeInsetLeft)
-                    top = maxOf(top, cutout.safeInsetTop)
-                    right = maxOf(right, cutout.safeInsetRight)
-                    bottom = maxOf(bottom, cutout.safeInsetBottom)
+                    safe = maxOf(
+                        cutout.safeInsetLeft,
+                        cutout.safeInsetTop,
+                        cutout.safeInsetRight,
+                        cutout.safeInsetBottom,
+                    )
                 }
             }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val gestures = insets.mandatorySystemGestureInsets
-                left = maxOf(left, gestures.left)
-                right = maxOf(right, gestures.right)
-                bottom = maxOf(bottom, gestures.bottom)
-            }
-
-            // 视频区域上下使用对称安全留白，避免仅扣除底部导航区后画面视觉中心上移。
-            top = maxOf(top, bottom)
-
-            // 使用左右相同的最大安全边距，避免刘海方向变化后整套控件偏左或偏右。
-            val horizontalSafeInset = maxOf(left, right)
-            left = horizontalSafeInset
-            right = horizontalSafeInset
-
-            if (view.paddingLeft != left || view.paddingTop != top ||
-                view.paddingRight != right || view.paddingBottom != bottom
-            ) {
-                view.setPadding(left, top, right, bottom)
-            }
+            vodController?.setFullscreenSafePadding(safe)
+            liveController?.setFullscreenSafePadding(safe)
             insets
         }
     }
@@ -774,6 +759,8 @@ class LyoPlayerComponent(
             Log.e(TAG, "exit fullscreen container failed", t)
         }
         fullscreenContainer = null
+        vodController?.setFullscreenSafePadding(0)
+        liveController?.setFullscreenSafePadding(0)
         embeddedParent = null
         embeddedIndex = -1
         embeddedLayoutParams = null

@@ -62,8 +62,9 @@ class PlayerIconView(
         val iconDp = when (value) {
             Icon.PLAY, Icon.PAUSE -> 48
             Icon.PREVIOUS, Icon.NEXT -> 20
-            Icon.MUTED -> 27
-            Icon.FULLSCREEN, Icon.EXIT_FULLSCREEN -> 23
+            Icon.VOLUME -> 23
+            Icon.MUTED -> 26
+            Icon.FULLSCREEN, Icon.EXIT_FULLSCREEN -> 21
             // 音量按钮创建时是 VOLUME，切到 MUTED 后仍沿用构造时的 baseIconDp。
             // 静音态必须在这里单独放大，修改 makeIconBtn(MUTED) 不会影响已创建的按钮。
             else -> 24

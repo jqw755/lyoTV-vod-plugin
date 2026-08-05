@@ -19,6 +19,7 @@ import android.widget.TextView
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout
 import java.math.BigDecimal
 
 /**
@@ -52,11 +53,16 @@ class LyoPlayerView @JvmOverloads constructor(
      * SurfaceView 是独立系统图层，uni-app 缓存 tab/nvue 页面时会残留最后一帧，
      * 甚至穿透显示到新打开的详情页；TextureView 会正常参与页面合成与隐藏。
      */
+    private val contentFrame: AspectRatioFrameLayout = AspectRatioFrameLayout(context).apply {
+        layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT, Gravity.CENTER)
+        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+    }
     private val textureView: TextureView = TextureView(context).apply {
         layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT, Gravity.CENTER)
     }
     private var attachedPlayer: Player? = null
     private var videoAspectRatio = 0f
+    private var resizeMode = PlayerResizeMode.ORIGINAL
     private val videoSizeListener = object : Player.Listener {
         override fun onVideoSizeChanged(videoSize: VideoSize) {
             val width = videoSize.width
@@ -66,7 +72,7 @@ class LyoPlayerView @JvmOverloads constructor(
             } else {
                 0f
             }
-            updateTextureViewSize()
+            contentFrame.setAspectRatio(videoAspectRatio)
         }
     }
 
@@ -92,14 +98,14 @@ class LyoPlayerView @JvmOverloads constructor(
 
     private val speedHintView: TextView = TextView(context).apply {
         setTextColor(Color.WHITE)
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
         gravity = Gravity.CENTER
         includeFontPadding = false
         setShadowLayer(dp(2).toFloat(), 0f, dp(1).toFloat(), 0xCC000000.toInt())
         val speedIcon = resources.getIdentifier("lyo_ic_speed", "drawable", context.packageName)
         if (speedIcon != 0) {
             val drawable = resources.getDrawable(speedIcon, context.theme).apply {
-                setBounds(0, 0, dp(24), dp(24))
+                setBounds(0, 0, dp(25), dp(25))
             }
             setCompoundDrawablesRelative(null, null, drawable, null)
         }
@@ -145,7 +151,8 @@ class LyoPlayerView @JvmOverloads constructor(
     }
 
     init {
-        addView(textureView)
+        contentFrame.addView(textureView)
+        addView(contentFrame)
         addView(shutterView)
         addView(gestureTouchView)
         addView(bufferingView)
@@ -173,31 +180,16 @@ class LyoPlayerView @JvmOverloads constructor(
             videoAspectRatio = 0f
         }
     }
-
-    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
-        super.onSizeChanged(w, h, oldw, oldh)
-        updateTextureViewSize(w, h)
-    }
-
-    /**
-     * TextureView 默认 MATCH_PARENT 会把视频强制拉伸到容器比例。
-     * 按视频实际宽高比做 aspect-fit，剩余区域显示黑边，不裁剪也不拉伸人物。
-     */
-    private fun updateTextureViewSize(containerWidth: Int = width, containerHeight: Int = height) {
-        if (containerWidth <= 0 || containerHeight <= 0 || videoAspectRatio <= 0f) return
-        val containerAspectRatio = containerWidth.toFloat() / containerHeight
-        val targetWidth: Int
-        val targetHeight: Int
-        if (videoAspectRatio > containerAspectRatio) {
-            targetWidth = containerWidth
-            targetHeight = (containerWidth / videoAspectRatio).toInt().coerceAtLeast(1)
-        } else {
-            targetHeight = containerHeight
-            targetWidth = (containerHeight * videoAspectRatio).toInt().coerceAtLeast(1)
+    fun setResizeMode(mode: PlayerResizeMode) {
+        if (resizeMode == mode) return
+        resizeMode = mode
+        contentFrame.resizeMode = when (mode) {
+            PlayerResizeMode.ORIGINAL -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+            PlayerResizeMode.RATIO_16_9 -> AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH
+            PlayerResizeMode.RATIO_4_3 -> AspectRatioFrameLayout.RESIZE_MODE_FIXED_HEIGHT
+            PlayerResizeMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+            PlayerResizeMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
         }
-        val params = textureView.layoutParams as? LayoutParams
-        if (params?.width == targetWidth && params.height == targetHeight) return
-        textureView.layoutParams = LayoutParams(targetWidth, targetHeight, Gravity.CENTER)
     }
 
     fun setPlayerGestureTouchListener(listener: OnTouchListener) {

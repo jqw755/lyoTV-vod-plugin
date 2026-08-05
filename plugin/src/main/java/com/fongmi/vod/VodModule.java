@@ -94,6 +94,7 @@ public class VodModule extends UniModule {
             com.alibaba.fastjson.JSONArray arr = new com.alibaba.fastjson.JSONArray();
             for (com.fongmi.vod.bean.Site s : com.fongmi.vod.api.config.VodConfig.get().getSites()) {
                 if (s.getSearchable() == 0) continue;
+                if (com.fongmi.vod.api.SiteApi.isBlockedSearchSite(s)) continue;
                 com.alibaba.fastjson.JSONObject obj = new com.alibaba.fastjson.JSONObject();
                 obj.put("key", s.getKey());
                 obj.put("name", s.getName());

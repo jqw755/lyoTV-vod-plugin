@@ -18,6 +18,7 @@ import android.widget.SeekBar
 import android.widget.ScrollView
 import android.widget.TextView
 import com.lyo.media3.player.player.LyoPlayerView
+import com.lyo.media3.player.player.PlayerResizeMode
 import java.math.BigDecimal
 import java.util.Locale
 
@@ -61,17 +62,23 @@ class VodControllerView(
     private var isFullscreen = false
     private var isLocked = false
     private var currentSpeed = 1f
+    private var currentScale = PlayerResizeMode.fromIndex(
+        context.getSharedPreferences("lyo_player", Context.MODE_PRIVATE).getInt("scale_vod", 0)
+    )
     private var isTrackingProgress = false
     private var progressDurationMs = 0L
 
     // 控件
     private val centerPlayBtn: PlayerIconView
     private val bottomBar: LinearLayout
+    private val bottomChrome: FrameLayout
     private val topBar: LinearLayout
+    private val topChrome: FrameLayout
     private val seekBar: SeekBar
     private val currentTimeText: TextView
     private val durationText: TextView
     private val speedBtn: TextView
+    private val scaleBtn: TextView
     private val prevBtn: PlayerIconView
     private val nextBtn: PlayerIconView
     private val muteBtn: PlayerIconView
@@ -80,7 +87,8 @@ class VodControllerView(
     private val rotateBtn: PlayerIconView
     private val lockBtn: PlayerIconView
     private val episodeBtn: TextView
-    private val centerControls: LinearLayout
+    private val centerControls: FrameLayout
+    private val centerButtonRow: LinearLayout
     private val rightControls: LinearLayout
     private val titleText: TextView
 
@@ -89,6 +97,7 @@ class VodControllerView(
 
     // 侧边栏（选集 + 倍速）
     private var sidePanel: LyoSidePanel? = null
+    private var fullscreenSafeHorizontal = 0
     private val episodes: MutableList<String> = mutableListOf()
     private var currentEpisodeIndex: Int = -1
     // 切集 loading：切集时置 true，期间拦截重复点击
@@ -103,7 +112,7 @@ class VodControllerView(
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(12), dp(6), dp(12), dp(6))
-            background = topGradient()
+            background = null
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.TOP)
             translationY = -dp(3).toFloat()
         }
@@ -138,7 +147,7 @@ class VodControllerView(
             clipToPadding = false
             // 左右使用相同边距；全屏安全区由外层容器统一补偿，避免竖屏操作栏偏左。
             setPadding(dp(12), dp(4), dp(12), dp(4))
-            background = bottomGradient()
+            background = null
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.BOTTOM)
         }
         prevBtn = makeIconBtn(PlayerIconView.Icon.PREVIOUS) { onPrevEpisode() }.apply {
@@ -157,18 +166,25 @@ class VodControllerView(
             text = "选集"
             setPadding(dp(10), dp(4), dp(10), dp(4))
             setOnClickListener { onEpisodeClick() }
+            visibility = View.GONE
         }
-        centerControls = LinearLayout(context).apply {
+        centerButtonRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.CENTER)
-            translationY = -dp(3).toFloat()
-            addView(prevBtn)
+            // 整组按自身固定宽度由 FrameLayout 锚定到正中央；不依赖首次测量时的 MATCH_PARENT 宽度。
+            // 播放、暂停和 loading 都保留同一个 72dp 中心占位，状态切换不会带动两侧切集按钮位移。
+            layoutParams = FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, dp(72), Gravity.CENTER)
+            addView(prevBtn, LinearLayout.LayoutParams(dp(36), dp(36)))
             addView(centerPlayBtn, LinearLayout.LayoutParams(dp(72), dp(72)).apply {
                 marginStart = dp(40)
                 marginEnd = dp(40)
             })
-            addView(nextBtn)
+            addView(nextBtn, LinearLayout.LayoutParams(dp(36), dp(36)))
+        }
+        centerControls = FrameLayout(context).apply {
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, dp(72), Gravity.CENTER)
+            translationY = -dp(3).toFloat()
+            addView(centerButtonRow)
         }
         currentTimeText = TextView(context).apply {
             setTextColor(Color.WHITE)
@@ -247,7 +263,7 @@ class VodControllerView(
             val speedIcon = resolvePlayerDrawable(context, "lyo_ic_speed")
             if (speedIcon != 0) {
                 val drawable = resources.getDrawable(speedIcon, context.theme).apply {
-                    setBounds(0, 0, dp(37), dp(37))
+                    setBounds(0, 0, dp(38), dp(38))
                 }
                 setCompoundDrawablesRelative(drawable, null, null, null)
             }
@@ -257,6 +273,16 @@ class VodControllerView(
             // 竖向 padding 会把操作行撑高，并连带把上方进度条顶向播放器中央。
             setPadding(dp(12), 0, dp(12), 0)
             setOnClickListener { onSpeedClick() }
+        }
+        scaleBtn = TextView(context).apply {
+            setTextColor(Color.WHITE)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            text = currentScale.label
+            gravity = Gravity.CENTER_VERTICAL
+            includeFontPadding = false
+            setPadding(dp(10), 0, dp(10), 0)
+            setOnClickListener { onScaleClick() }
+            visibility = View.GONE
         }
         val progressRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -270,7 +296,10 @@ class VodControllerView(
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL or Gravity.END
             translationY = 0f
-            addView(episodeBtn, LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
+            // 画面比例文字固定在底部操作行左侧。
+            addView(View(context), LinearLayout.LayoutParams(0, 1, 1f))
+            addView(scaleBtn)
+            addView(episodeBtn)
             addView(speedBtn)
             addView(muteBtn, LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
                 marginStart = dp(14)
@@ -282,9 +311,22 @@ class VodControllerView(
         bottomBar.addView(progressRow)
         bottomBar.addView(actionRow)
 
-        addView(topBar)
+        topChrome = FrameLayout(context).apply {
+            background = topGradient()
+            clipChildren = false
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.TOP)
+            addView(topBar)
+        }
+        bottomChrome = FrameLayout(context).apply {
+            background = bottomGradient()
+            clipChildren = false
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.BOTTOM)
+            addView(bottomBar)
+        }
+
+        addView(topChrome)
         addView(centerControls)
-        addView(bottomBar)
+        addView(bottomChrome)
         rightControls = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
@@ -302,6 +344,7 @@ class VodControllerView(
             })
         }
         addView(rightControls)
+        hostView.setResizeMode(currentScale)
 
         // 默认隐藏，等首次播放或用户单击后再显示
         visibility = View.GONE
@@ -316,6 +359,12 @@ class VodControllerView(
 
     fun removeFromParent() {
         (parent as? ViewGroup)?.removeView(this)
+    }
+
+    fun setFullscreenSafePadding(horizontal: Int) {
+        fullscreenSafeHorizontal = horizontal.coerceAtLeast(0)
+        setPadding(0, 0, 0, 0)
+        applyFullscreenChromeLayout(width, height)
     }
 
     fun setTitle(title: String) {
@@ -334,6 +383,9 @@ class VodControllerView(
             onLockChange(false)
         }
         fullscreenBtn.icon = if (fs) PlayerIconView.Icon.EXIT_FULLSCREEN else PlayerIconView.Icon.FULLSCREEN
+        topBar.translationY = if (fs) dp(8).toFloat() else -dp(3).toFloat()
+        bottomBar.translationY = if (fs) -dp(8).toFloat() else 0f
+        applyFullscreenChromeLayout(width, height)
         applyControlVisibility()
     }
 
@@ -438,9 +490,10 @@ class VodControllerView(
         rotateBtn.visibility = if (isFullscreen && !isLocked) View.VISIBLE else View.GONE
         lockBtn.visibility = if (isFullscreen) View.VISIBLE else View.GONE
         episodeBtn.visibility = if (isFullscreen && !isLocked) View.VISIBLE else View.GONE
-        topBar.visibility = if (isLocked) View.GONE else View.VISIBLE
+        scaleBtn.visibility = if (isFullscreen && !isLocked) View.VISIBLE else View.GONE
+        topChrome.visibility = if (isLocked) View.GONE else View.VISIBLE
         centerControls.visibility = if (isLocked) View.GONE else View.VISIBLE
-        bottomBar.visibility = if (isLocked) View.GONE else View.VISIBLE
+        bottomChrome.visibility = if (isLocked) View.GONE else View.VISIBLE
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -453,7 +506,12 @@ class VodControllerView(
             playParams.marginEnd = margin
             centerPlayBtn.layoutParams = playParams
         }
-        val horizontalPadding = dp(if (w > h) 12 else 10)
+        applyFullscreenChromeLayout(w, h)
+    }
+
+    private fun applyFullscreenChromeLayout(w: Int, h: Int) {
+        val basePadding = dp(if (w > h) 12 else 10)
+        val horizontalPadding = basePadding + if (isFullscreen) fullscreenSafeHorizontal else 0
         topBar.setPadding(horizontalPadding, dp(6), horizontalPadding, dp(6))
         bottomBar.setPadding(horizontalPadding, dp(4), horizontalPadding, 0)
         (rightControls.layoutParams as? LayoutParams)?.let { params ->
@@ -477,7 +535,12 @@ class VodControllerView(
         openSidePanel(SidePanelType.SPEED)
     }
 
-    private enum class SidePanelType { EPISODES, SPEED }
+    private fun onScaleClick() {
+        if (isLocked) return
+        openSidePanel(SidePanelType.SCALE)
+    }
+
+    private enum class SidePanelType { EPISODES, SPEED, SCALE }
 
     private fun openSidePanel(type: SidePanelType) {
         val panel = sidePanel ?: LyoSidePanel(
@@ -593,6 +656,46 @@ class VodControllerView(
                 }
                 speedScroll.addView(speedList)
                 root.addView(speedScroll)
+            }
+            SidePanelType.SCALE -> {
+                val scaleScroll = ScrollView(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        0,
+                        1f,
+                    )
+                    isFillViewport = true
+                }
+                val scaleList = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+                PlayerResizeMode.values().forEach { mode ->
+                    val tv = TextView(context).apply {
+                        val selected = mode == currentScale
+                        setTextColor(if (selected) Color.WHITE else 0xFF333333.toInt())
+                        setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                        text = mode.label
+                        setPadding(dp(12), dp(10), dp(12), dp(10))
+                        gravity = Gravity.CENTER
+                        background = GradientDrawable().apply {
+                            setColor(if (selected) 0xFFfe8027.toInt() else 0xFFF2F2F2.toInt())
+                            cornerRadius = dp(6).toFloat()
+                        }
+                        layoutParams = LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                        ).apply { bottomMargin = dp(8) }
+                        setOnClickListener {
+                            currentScale = mode
+                            scaleBtn.text = mode.label
+                            hostView.setResizeMode(mode)
+                            context.getSharedPreferences("lyo_player", Context.MODE_PRIVATE)
+                                .edit().putInt("scale_vod", mode.index).apply()
+                            sidePanel?.dismiss()
+                        }
+                    }
+                    scaleList.addView(tv)
+                }
+                scaleScroll.addView(scaleList)
+                root.addView(scaleScroll)
             }
         }
         return root
