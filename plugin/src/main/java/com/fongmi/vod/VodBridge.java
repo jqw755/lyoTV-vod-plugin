@@ -36,6 +36,100 @@ import io.dcloud.feature.uniapp.bridge.UniJSCallback;
  */
 public class VodBridge {
 
+    /** HHKan standalone home page. Falls back to WebView for HTTP 850 browser verification. */
+    public static void hhkanHome(JsonObject args, UniJSCallback cb) {
+        String inputUrl = Json.safeString(args, "url");
+        Task.largeExecutor().execute(() -> {
+            try {
+                cb.invoke(ok(com.fongmi.vod.hhkan.HhkanService.home(inputUrl).toString()));
+            } catch (com.fongmi.vod.hhkan.HhkanService.BrowserChallengeException challenge) {
+                loadHhkanHome(inputUrl, challenge.url, cb);
+            } catch (Exception e) {
+                android.util.Log.e("VodPlugin", "hhkan home error", e);
+                cb.invoke(error(-2, e.getMessage()));
+            }
+        });
+    }
+
+    /** HHKan standalone search. It shares the verified home DOM and Cookie session. */
+    public static void hhkanSearch(JsonObject args, UniJSCallback cb) {
+        String inputUrl = Json.safeString(args, "url");
+        String keyword = Json.safeString(args, "keyword");
+        Task.largeExecutor().execute(() -> {
+            try {
+                cb.invoke(ok(com.fongmi.vod.hhkan.HhkanService.search(inputUrl, keyword).toString()));
+            } catch (com.fongmi.vod.hhkan.HhkanService.BrowserChallengeException challenge) {
+                loadHhkanSearch(inputUrl, challenge.url, keyword, cb);
+            } catch (Exception e) {
+                android.util.Log.e("VodPlugin", "hhkan search error", e);
+                cb.invoke(error(-2, e.getMessage()));
+            }
+        });
+    }
+
+    public static void hhkanCategory(JsonObject args, UniJSCallback cb) {
+        loadHhkanCategory(Json.safeString(args, "url"), cb);
+    }
+
+    private static void loadHhkanCategory(String url, UniJSCallback cb) {
+        if (TextUtils.isEmpty(url)) {
+            cb.invoke(error(-1, "need url"));
+            return;
+        }
+        com.fongmi.vod.hhkan.HhkanWebLoader.load(url, (finalUrl, html, cookie, loadError) -> {
+            if (loadError != null) {
+                cb.invoke(error(-2, loadError.getMessage()));
+                return;
+            }
+            Task.largeExecutor().execute(() -> {
+                try {
+                    com.fongmi.vod.hhkan.HhkanService.rememberPageSession(finalUrl, cookie);
+                    cb.invoke(ok(com.fongmi.vod.hhkan.HhkanService.categoryFromHtml(finalUrl, html).toString()));
+                } catch (Exception e) {
+                    android.util.Log.e("VodPlugin", "hhkan category error", e);
+                    cb.invoke(error(-2, e.getMessage()));
+                }
+            });
+        });
+    }
+    private static void loadHhkanHome(String inputUrl, String challengeUrl, UniJSCallback cb) {
+        com.fongmi.vod.hhkan.HhkanWebLoader.load(challengeUrl, (finalUrl, html, cookie, error) -> {
+            if (error != null) {
+                android.util.Log.e("VodPlugin", "hhkan browser verification error", error);
+                cb.invoke(VodBridge.error(-2, error.getMessage()));
+                return;
+            }
+            Task.largeExecutor().execute(() -> {
+                try {
+                    com.fongmi.vod.hhkan.HhkanService.primeHome(inputUrl, finalUrl, html, cookie);
+                    cb.invoke(ok(com.fongmi.vod.hhkan.HhkanService.homeFromHtml(finalUrl, html).toString()));
+                } catch (Exception e) {
+                    android.util.Log.e("VodPlugin", "hhkan verified home parse error", e);
+                    cb.invoke(VodBridge.error(-2, e.getMessage()));
+                }
+            });
+        });
+    }
+
+    private static void loadHhkanSearch(String inputUrl, String challengeUrl, String keyword, UniJSCallback cb) {
+        com.fongmi.vod.hhkan.HhkanWebLoader.load(challengeUrl, (finalUrl, html, cookie, error) -> {
+            if (error != null) {
+                android.util.Log.e("VodPlugin", "hhkan browser verification error", error);
+                cb.invoke(VodBridge.error(-2, error.getMessage()));
+                return;
+            }
+            Task.largeExecutor().execute(() -> {
+                try {
+                    com.fongmi.vod.hhkan.HhkanService.primeHome(inputUrl, finalUrl, html, cookie);
+                    cb.invoke(ok(com.fongmi.vod.hhkan.HhkanService.search(inputUrl, keyword).toString()));
+                } catch (Exception e) {
+                    android.util.Log.e("VodPlugin", "hhkan verified search error", e);
+                    cb.invoke(VodBridge.error(-2, e.getMessage()));
+                }
+            });
+        });
+    }
+
     @FunctionalInterface
     private interface ThrowingRunnable {
         void run() throws Exception;

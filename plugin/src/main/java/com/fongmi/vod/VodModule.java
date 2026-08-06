@@ -28,6 +28,7 @@ public class VodModule extends UniModule {
                 ctx = mUniSDKInstance.getContext();
             }
             if (ctx != null) {
+                if (ctx instanceof android.app.Activity) App.setActivity((android.app.Activity) ctx);
                 ctx = ctx.getApplicationContext();
                 App.init(ctx);
                 com.github.catvod.Init.set(ctx);
@@ -71,6 +72,21 @@ public class VodModule extends UniModule {
     public void home(JSONObject args, UniJSCallback cb) {
         safeCall(args, cb, VodBridge::home);
     }
+
+    /** HHKan 独立首页数据，不依赖订阅配置。 */
+    @UniJSMethod(uiThread = false)
+    public void hhkanHome(JSONObject args, UniJSCallback cb) {
+        safeCall(args, cb, VodBridge::hhkanHome);
+    }
+
+    /** HHKan 独立搜索。 */
+    @UniJSMethod(uiThread = false)
+    public void hhkanSearch(JSONObject args, UniJSCallback cb) {
+        safeCall(args, cb, VodBridge::hhkanSearch);
+    }
+
+    @UniJSMethod(uiThread = false)
+    public void hhkanCategory(JSONObject args, UniJSCallback cb) { safeCall(args, cb, VodBridge::hhkanCategory); }
 
     @UniJSMethod(uiThread = false)
     public void category(JSONObject args, UniJSCallback cb) {
