@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import okhttp3.Call;
 import okhttp3.Response;
@@ -225,7 +226,7 @@ public class SiteApi {
     private static Result filterUnsupportedSearchResults(Result result) {
         List<Vod> filtered = result.getList().stream()
                 .filter(vod -> !vod.isFolder() && !vod.isAction())
-                .toList();
+                .collect(Collectors.toList());
         result.setList(filtered);
         return result;
     }
@@ -260,7 +261,7 @@ public class SiteApi {
         if (site.getCategories().isEmpty()) return;
         Map<String, Class> typeByName = new HashMap<>();
         result.getTypes().forEach(type -> typeByName.put(type.getTypeName(), type));
-        List<Class> types = site.getCategories().stream().map(typeByName::get).filter(Objects::nonNull).toList();
+        List<Class> types = site.getCategories().stream().map(typeByName::get).filter(Objects::nonNull).collect(Collectors.toList());
         if (!types.isEmpty()) result.setTypes(types);
     }
 }

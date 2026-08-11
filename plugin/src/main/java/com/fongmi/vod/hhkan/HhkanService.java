@@ -77,6 +77,7 @@ public final class HhkanService {
 
     private static JsonArray parseCategoryTabs(Document doc) {
         JsonArray tabs = new JsonArray();
+        boolean activeFound = false;
         for (Element link : doc.select(".tab-box a.tab-item[href]")) {
             String name = clean(link.text());
             String url = absolute(link, "href");
@@ -84,7 +85,10 @@ public final class HhkanService {
             JsonObject tab = new JsonObject();
             tab.addProperty("name", name);
             tab.addProperty("url", url);
-            tab.addProperty("active", link.hasClass("tab-item-active"));
+            // 部分专题页把 active class 复制到了整组节点；最多只允许一个顶部分类高亮。
+            boolean active = !activeFound && (samePage(url, doc.location()) || link.hasClass("tab-item-active"));
+            tab.addProperty("active", active);
+            if (active) activeFound = true;
             tabs.add(tab);
         }
         return tabs;
@@ -215,12 +219,18 @@ public final class HhkanService {
 
     private static Element findLargestCardContainer(Document doc) {
         Element best = null;
-        int bestCount = 0;
+        int bestScore = Integer.MIN_VALUE;
         for (Element container : doc.select("main,section,[class*=module],[class*=grid],[class*=list],[class*=row],[class*=box]")) {
             int count = container.select(SECTION_CARD_SELECTOR).size();
-            if (count >= 2 && count <= 120 && count > bestCount) {
+            if (count < 2 || count > 120) continue;
+            String marker = (container.className() + " " + container.id()).toLowerCase(Locale.ROOT);
+            int score = count;
+            if (marker.contains("rank") || marker.contains("sidebar") || marker.contains("side-")) score -= 1000;
+            if (marker.contains("module-items") || marker.contains("module-list") || marker.contains("page-list")) score += 300;
+            if (container.closest("main") != null) score += 100;
+            if (score > bestScore) {
                 best = container;
-                bestCount = count;
+                bestScore = score;
             }
         }
         return best;
@@ -236,7 +246,25 @@ public final class HhkanService {
                 if (!href.isEmpty() && !href.startsWith("javascript:")) return href;
             }
         }
+        Element current = doc.selectFirst(".page-current,.page-link.active,.pagination .active,.page-item.active");
+        if (current != null) {
+            Element sibling = current.nextElementSibling();
+            Element link = sibling == null ? null : (sibling.tagName().equals("a") ? sibling : sibling.selectFirst("a[href]"));
+            if (link != null) {
+                String href = absolute(link, "href");
+                if (!href.isEmpty() && !href.startsWith("javascript:")) return href;
+            }
+        }
         return "";
+    }
+
+    private static boolean samePage(String left, String right) {
+        HttpUrl a = HttpUrl.parse(left);
+        HttpUrl b = HttpUrl.parse(right);
+        if (a == null || b == null) return false;
+        return a.host().equalsIgnoreCase(b.host())
+                && a.encodedPath().equals(b.encodedPath())
+                && String.valueOf(a.encodedQuery()).equals(String.valueOf(b.encodedQuery()));
     }
 
     private static String attr(Document doc, String selector, String name) {
@@ -335,6 +363,11 @@ public final class HhkanService {
 
     private static JsonArray parseCategories(Document doc) {
         JsonArray result = new JsonArray(); Set<String> seen = new LinkedHashSet<>();
+        JsonObject recommend = new JsonObject();
+        recommend.addProperty("type_name", "推荐");
+        recommend.addProperty("type_id", doc.baseUri());
+        result.add(recommend);
+        seen.add("推荐");
         for (Element anchor : doc.select("a[href]")) {
             String name = clean(anchor.text());
             if (!CATEGORY_NAMES.contains(name) || !seen.add(name)) continue;
@@ -545,7 +578,8 @@ public final class HhkanService {
 
     private static String extractRemarks(String text, String name) {
         java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("(豆瓣[:：]?\\s*\\d+(?:\\.\\d+)?分?|更新(?:至|第)?\\d+集|全\\d+集(?:完结)?|第\\d+集(?:完结)?|已完结|完结|正片|高清版|HD)").matcher(text.replace(name, " "));
-        StringBuilder result = new StringBuilder(); while (matcher.find()) { if (result.length() > 0) result.append(" · "); result.append(matcher.group(1)); } return result.toString();
+        // 卡片左上角只展示点分隔前的主 tag，与 APP 链路的 topLeftLabel 规则一致。
+        return matcher.find() ? matcher.group(1) : "";
     }
 
     private static String absolute(Element element, String attr) { String value = element.absUrl(attr); return value.isEmpty() ? resolve(element.baseUri(), element.attr(attr)) : value; }

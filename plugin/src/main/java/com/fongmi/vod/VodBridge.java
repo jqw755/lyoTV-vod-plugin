@@ -23,6 +23,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
 import io.dcloud.feature.uniapp.bridge.UniJSCallback;
 
@@ -284,7 +285,7 @@ public class VodBridge {
                 .filter(s -> s.getSearchable() != 0)
                 .filter(s -> !SiteApi.isBlockedSearchSite(s))
                 .filter(s -> !quick || s.isQuickSearch())
-                .toList();
+                .collect(Collectors.toList());
             // quick 模式总时限 4s（前端 5s 超时留 1s 余量），普通模式 8s
             long deadlineMs = quick ? 4000L : 8000L;
             // quick 模式每站 1.5s 超时，普通模式 3s

@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 public class Site implements Parcelable {
 
@@ -289,7 +290,7 @@ public class Site implements Parcelable {
     public Site trans() {
         if (Trans.pass()) return this;
         this.name = Trans.s2t(name);
-        setCategories(getCategories().stream().map(Trans::s2t).toList());
+        setCategories(getCategories().stream().map(Trans::s2t).collect(Collectors.toList()));
         return this;
     }
 
