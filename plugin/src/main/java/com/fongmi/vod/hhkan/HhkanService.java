@@ -20,7 +20,7 @@ import okhttp3.Response;
 
 /** HHKan 独立首页采集器，不依赖现有 VodConfig 或播放链路。 */
 public final class HhkanService {
-    private static final String HOME = "https://www.kkys13.com/";
+    private static final String HOME = "https://www.kkys14.com/";
     private static final String UA = "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36";
     private static final long HOME_CACHE_MS = 60_000L;
     private static final Map<String, CachedHome> HOME_CACHE = new ConcurrentHashMap<>();
@@ -62,13 +62,57 @@ public final class HhkanService {
 
     public static JsonObject categoryFromHtml(String finalUrl, String html) {
         Document doc = Jsoup.parse(html, finalUrl);
-        Element container = findLargestCardContainer(doc);
-        JsonArray list = container == null ? parseCards(doc, 80) : parseSectionCards(container, 80);
         JsonObject result = new JsonObject();
         result.addProperty("source", finalUrl);
-        result.add("list", list);
-        result.addProperty("next", findNextPage(doc));
+        try { result.add("tabs", parseCategoryTabs(doc)); } catch (Exception e) { result.add("tabs", new JsonArray()); }
+        try { result.add("filters", parseFilters(doc)); } catch (Exception e) { result.add("filters", new JsonArray()); }
+        try { result.add("sections", parseSections(doc)); } catch (Exception e) { result.add("sections", new JsonArray()); }
+        try {
+            Element container = findLargestCardContainer(doc);
+            result.add("list", container == null ? parseCards(doc, 80) : parseSectionCards(container, 80));
+        } catch (Exception e) { result.add("list", new JsonArray()); }
+        try { result.addProperty("next", findNextPage(doc)); } catch (Exception e) { result.addProperty("next", ""); }
         return result;
+    }
+
+    private static JsonArray parseCategoryTabs(Document doc) {
+        JsonArray tabs = new JsonArray();
+        for (Element link : doc.select(".tab-box a.tab-item[href]")) {
+            String name = clean(link.text());
+            String url = absolute(link, "href");
+            if (name.isEmpty() || url.isEmpty()) continue;
+            JsonObject tab = new JsonObject();
+            tab.addProperty("name", name);
+            tab.addProperty("url", url);
+            tab.addProperty("active", link.hasClass("tab-item-active"));
+            tabs.add(tab);
+        }
+        return tabs;
+    }
+
+    private static JsonArray parseFilters(Document doc) {
+        JsonArray filters = new JsonArray();
+        for (Element row : doc.select(".filter-box .filter-row")) {
+            Element label = row.selectFirst(".filter-row-side strong");
+            String name = label == null ? "" : clean(label.text()).replaceAll("[:：]$", "");
+            JsonArray values = new JsonArray();
+            for (Element link : row.select(".filter-row-main a.filter-item[href]")) {
+                String text = clean(link.text());
+                String url = absolute(link, "href");
+                if (text.isEmpty() || url.isEmpty()) continue;
+                JsonObject value = new JsonObject();
+                value.addProperty("name", text);
+                value.addProperty("url", url);
+                value.addProperty("active", link.hasClass("filter-item-active"));
+                values.add(value);
+            }
+            if (name.isEmpty() || values.size() == 0) continue;
+            JsonObject filter = new JsonObject();
+            filter.addProperty("name", name);
+            filter.add("values", values);
+            filters.add(filter);
+        }
+        return filters;
     }
 
     public static JsonObject detailFromHtml(String finalUrl, String html) {
@@ -331,6 +375,8 @@ public final class HhkanService {
             JsonObject section = new JsonObject();
             section.addProperty("title", title);
             section.add("list", list);
+            Element more = container.selectFirst(".section-header-more[href],a[class*=more][href]");
+            if (more != null) section.addProperty("more", absolute(more, "href"));
             sections.add(section);
         }
         for (Element container : doc.select("main > section,section,[class*=module],[class*=section]")) {
@@ -344,6 +390,8 @@ public final class HhkanService {
             JsonObject section = new JsonObject();
             section.addProperty("title", title);
             section.add("list", list);
+            Element more = container.selectFirst(".section-header-more[href],a[class*=more][href]");
+            if (more != null) section.addProperty("more", absolute(more, "href"));
             sections.add(section);
         }
         return sections;
@@ -465,7 +513,7 @@ public final class HhkanService {
         String value = imageUrl == null ? "" : imageUrl.trim();
         if (value.startsWith("/vod1/")) return "https://vres.cyscyy.com" + value;
         String resolved = resolve(baseUrl, value);
-        if (resolved.contains("/vod1/") && resolved.contains("kkys")) {
+        if (resolved.contains("/vod1/")) {
             int path = resolved.indexOf("/vod1/");
             return "https://vres.cyscyy.com" + resolved.substring(path);
         }
