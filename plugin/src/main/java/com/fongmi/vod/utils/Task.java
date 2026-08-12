@@ -17,6 +17,7 @@ public class Task {
 
     private static final ListeningExecutorService executor = MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(5));
     private static final ListeningExecutorService largeExecutor = MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(20));
+    private static final ListeningExecutorService searchExecutor = MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(6));
     private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
     public static ListeningExecutorService executor() {
@@ -25,6 +26,11 @@ public class Task {
 
     public static ListeningExecutorService largeExecutor() {
         return largeExecutor;
+    }
+
+    /** 搜索专用线程池，避免大量站点搜索占满播放器、首页等共享任务线程。 */
+    public static ListeningExecutorService searchExecutor() {
+        return searchExecutor;
     }
 
     public static ScheduledExecutorService scheduler() {

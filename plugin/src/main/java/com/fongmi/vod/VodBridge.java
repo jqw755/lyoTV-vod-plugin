@@ -336,19 +336,20 @@ public class VodBridge {
             String keyword = Json.safeString(args, "keyword");
             String siteKey = Json.safeString(args, "siteKey");
             Site site = VodConfig.get().getSite(siteKey);
-            if (TextUtils.isEmpty(site.getKey()) || SiteApi.isBlockedSearchSite(site)) {
-                cb.invoke(ok(Result.list(new ArrayList<>()).toString()));
+            if (site == null || TextUtils.isEmpty(site.getKey()) || SiteApi.isBlockedSearchSite(site)) {
+                App.post(() -> cb.invoke(ok(Result.list(new ArrayList<>()).toString())));
                 return;
             }
-            // 对标 ViewModelSearchRunner: 提交到共享线程池，不阻塞当前调度线程
-            Task.largeExecutor().execute(() -> {
+            // 搜索使用独立小线程池，避免几十个站点挤占 largeExecutor。
+            Task.searchExecutor().execute(() -> {
                 try {
                     Result result = SiteApi.searchContent(site, keyword, false, "1");
-                    // site 信息会通过 Vod.setSite() 自动携带 site_name
-                    cb.invoke(ok(result.toString()));
-                } catch (Exception e) {
+                    JSONObject payload = ok(result.toString());
+                    // UniJSCallback 统一回到主线程，规避部分厂商系统的并发桥接兼容问题。
+                    App.post(() -> cb.invoke(payload));
+                } catch (Throwable e) {
                     android.util.Log.e("VodPlugin", "searchSite error for " + site.getName() + ": " + e.getMessage());
-                    cb.invoke(ok(Result.list(new ArrayList<>()).toString()));
+                    App.post(() -> cb.invoke(ok(Result.list(new ArrayList<>()).toString())));
                 }
             });
         }, cb);
