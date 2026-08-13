@@ -430,6 +430,22 @@ public final class HhkanService {
         return sections;
     }
 
+
+	/** 根据目标页面真实 DOM 结构识别目录或影视详情，不依赖标题及 URL 关键词。 */
+	public static JsonObject routeFromHtml(String finalUrl, String html) {
+		Document doc = Jsoup.parse(html, finalUrl);
+		JsonObject result = new JsonObject();
+		result.addProperty("source", finalUrl);
+		JsonObject detail = detailFromHtml(finalUrl, html);
+		JsonArray episodes = detail.getAsJsonArray("episodes");
+		int cardCount = doc.select(SECTION_CARD_SELECTOR).size();
+		boolean hasDirectoryControls = !doc.select(".tab-box a.tab-item[href],.filter-box .filter-row,a[class*=more][href]").isEmpty();
+		boolean isDetail = episodes != null && episodes.size() > 0;
+		boolean isCategory = !isDetail && (hasDirectoryControls || cardCount >= 2);
+		result.addProperty("type", isCategory ? "category" : "detail");
+		return result;
+	}
+
     private static Element findSectionContainer(Element heading) {
         Element current = heading.parent();
         while (current != null && !current.tagName().equals("body")) {

@@ -72,6 +72,62 @@ public class VodBridge {
         loadHhkanCategory(Json.safeString(args, "url"), cb);
     }
 
+    public static void hhkanDetail(JsonObject args, UniJSCallback cb) {
+        loadHhkanPage(Json.safeString(args, "url"), cb, false);
+    }
+
+    public static void hhkanPlayer(JsonObject args, UniJSCallback cb) {
+        loadHhkanPage(Json.safeString(args, "url"), cb, true);
+    }
+
+    public static void hhkanRoute(JsonObject args, UniJSCallback cb) {
+        String url = Json.safeString(args, "url");
+        if (TextUtils.isEmpty(url)) {
+            cb.invoke(error(-1, "need url"));
+            return;
+        }
+        com.fongmi.vod.hhkan.HhkanWebLoader.load(url, (finalUrl, html, cookie, loadError) -> {
+            if (loadError != null) {
+                cb.invoke(error(-2, loadError.getMessage()));
+                return;
+            }
+            Task.largeExecutor().execute(() -> {
+                try {
+                    com.fongmi.vod.hhkan.HhkanService.rememberPageSession(finalUrl, cookie);
+                    cb.invoke(ok(com.fongmi.vod.hhkan.HhkanService.routeFromHtml(finalUrl, html).toString()));
+                } catch (Exception e) {
+                    android.util.Log.e("VodPlugin", "hhkan route error", e);
+                    cb.invoke(error(-2, e.getMessage()));
+                }
+            });
+        });
+    }
+
+    private static void loadHhkanPage(String url, UniJSCallback cb, boolean playPage) {
+        if (TextUtils.isEmpty(url)) {
+            cb.invoke(error(-1, "need url"));
+            return;
+        }
+        com.fongmi.vod.hhkan.HhkanWebLoader.load(url, (finalUrl, html, cookie, loadError) -> {
+            if (loadError != null) {
+                cb.invoke(error(-2, loadError.getMessage()));
+                return;
+            }
+            Task.largeExecutor().execute(() -> {
+                try {
+                    com.fongmi.vod.hhkan.HhkanService.rememberPageSession(finalUrl, cookie);
+                    JsonObject data = playPage
+                            ? com.fongmi.vod.hhkan.HhkanService.playFromHtml(finalUrl, html)
+                            : com.fongmi.vod.hhkan.HhkanService.detailFromHtml(finalUrl, html);
+                    cb.invoke(ok(data.toString()));
+                } catch (Exception e) {
+                    android.util.Log.e("VodPlugin", playPage ? "hhkan player error" : "hhkan detail error", e);
+                    cb.invoke(error(-2, e.getMessage()));
+                }
+            });
+        });
+    }
+
     private static void loadHhkanCategory(String url, UniJSCallback cb) {
         if (TextUtils.isEmpty(url)) {
             cb.invoke(error(-1, "need url"));

@@ -89,6 +89,15 @@ public class VodModule extends UniModule {
     public void hhkanCategory(JSONObject args, UniJSCallback cb) { safeCall(args, cb, VodBridge::hhkanCategory); }
 
     @UniJSMethod(uiThread = false)
+    public void hhkanDetail(JSONObject args, UniJSCallback cb) { safeCall(args, cb, VodBridge::hhkanDetail); }
+
+    @UniJSMethod(uiThread = false)
+    public void hhkanPlayer(JSONObject args, UniJSCallback cb) { safeCall(args, cb, VodBridge::hhkanPlayer); }
+
+    @UniJSMethod(uiThread = false)
+    public void hhkanRoute(JSONObject args, UniJSCallback cb) { safeCall(args, cb, VodBridge::hhkanRoute); }
+
+    @UniJSMethod(uiThread = false)
     public void category(JSONObject args, UniJSCallback cb) {
         safeCall(args, cb, VodBridge::category);
     }

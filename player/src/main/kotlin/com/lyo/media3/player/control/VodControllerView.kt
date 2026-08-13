@@ -75,6 +75,7 @@ class VodControllerView(
     private val topBar: LinearLayout
     private val topChrome: FrameLayout
     private val seekBar: SeekBar
+    private val progressRow: LinearLayout
     private val currentTimeText: TextView
     private val durationText: TextView
     private val speedBtn: TextView
@@ -277,10 +278,11 @@ class VodControllerView(
             setOnClickListener { onScaleClick() }
             visibility = View.GONE
         }
-        val progressRow = LinearLayout(context).apply {
+        progressRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            translationY = -dp(8).toFloat()
+            // 内嵌竖屏的控制区较矮，进度条下移；全屏仍保持原来的合适位置。
+            translationY = dp(1).toFloat()
             addView(currentTimeText)
             addView(seekBar)
             addView(durationText)
@@ -381,6 +383,7 @@ class VodControllerView(
         fullscreenBtn.icon = if (fs) PlayerIconView.Icon.EXIT_FULLSCREEN else PlayerIconView.Icon.FULLSCREEN
         topBar.translationY = if (fs) dp(8).toFloat() else -dp(3).toFloat()
         bottomBar.translationY = if (fs) -dp(8).toFloat() else 0f
+        progressRow.translationY = if (fs) -dp(8).toFloat() else dp(1).toFloat()
         applyFullscreenChromeLayout(width, height)
         applyControlVisibility()
     }
