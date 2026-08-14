@@ -150,29 +150,20 @@ public final class HhkanService {
 
     private static JsonArray parsePlaySources(Document doc) {
         JsonArray result = new JsonArray();
-        java.util.List<String> names = new java.util.ArrayList<>();
-        for (Element tab : doc.select(".module-tab-item,.module-tab-title,[class*=play] [class*=tab-item]")) {
-            String name = clean(tab.text());
-            if (!name.isEmpty() && !names.contains(name)) names.add(name);
-        }
-
-        Set<String> signatures = new LinkedHashSet<>();
-        int sourceIndex = 0;
-        for (Element container : doc.select(".module-play-list,.module-play-list-content,[class*=playlist],[class*=play-list]")) {
-            JsonArray episodes = parseEpisodes(container, "a[href*='/play/'],a[href*='/vodplay/'],a[href]");
+        org.jsoup.select.Elements sourceItems = doc.select(".source-list-box-main .source-item");
+        org.jsoup.select.Elements episodeLists = doc.select(".episode-list-box-main .episode-list");
+        int count = Math.min(sourceItems.size(), episodeLists.size());
+        for (int i = 0; i < count; i++) {
+            Element sourceItem = sourceItems.get(i);
+            Element label = sourceItem.selectFirst(".source-item-label");
+            String name = clean(label == null ? sourceItem.text() : label.text());
+            JsonArray episodes = parseEpisodes(episodeLists.get(i), ".episode-item[href],a[href*='/play/'],a[href*='/vodplay/']");
             if (episodes.size() == 0) continue;
-            StringBuilder signature = new StringBuilder();
-            for (int i = 0; i < episodes.size(); i++) {
-                signature.append(episodes.get(i).getAsJsonObject().get("url").getAsString()).append('|');
-            }
-            if (!signatures.add(signature.toString())) continue;
-
-            String name = sourceIndex < names.size() ? names.get(sourceIndex) : "线路" + (sourceIndex + 1);
+            if (name.isEmpty()) name = "\u7ebf\u8def" + (i + 1);
             JsonObject source = new JsonObject();
             source.addProperty("name", name);
             source.add("episodes", episodes);
             result.add(source);
-            sourceIndex++;
         }
         return result;
     }
@@ -196,10 +187,11 @@ public final class HhkanService {
     public static JsonObject playFromHtml(String finalUrl, String html) {
         Document doc = Jsoup.parse(html, finalUrl);
         String direct = first(attr(doc, "video[src]", "src"), attr(doc, "video source[src]", "src"));
+        if (direct.startsWith("blob:") || direct.startsWith("data:")) direct = "";
         if (!direct.isEmpty()) direct = resolve(finalUrl, direct);
         if (direct.isEmpty()) {
             java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("https?:(?:\\\\/|/){2}[^\"'<>\\s]+?\\.(?:m3u8|mp4)(?:\\?[^\"'<>\\s]*)?", java.util.regex.Pattern.CASE_INSENSITIVE).matcher(html);
-            if (matcher.find()) direct = matcher.group().replace("\\/", "/");
+            if (matcher.find()) direct = org.jsoup.parser.Parser.unescapeEntities(matcher.group().replace("\\/", "/"), false);
         }
         JsonObject headers = new JsonObject();
         headers.addProperty("Referer", finalUrl);
