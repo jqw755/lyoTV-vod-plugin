@@ -136,22 +136,61 @@ public final class HhkanService {
         vod.addProperty("vod_pic", pic);
         vod.addProperty("vod_content", clean(content));
 
+        JsonArray sources = parsePlaySources(doc);
+        JsonArray episodes = sources.size() == 0
+                ? parseEpisodes(doc, "a[href*='/play/'],a[href*='/vodplay/'],[class*=playlist] a[href],[class*=play-list] a[href]")
+                : sources.get(0).getAsJsonObject().getAsJsonArray("episodes");
+        JsonObject result = new JsonObject();
+        result.addProperty("source", finalUrl);
+        result.add("vod", vod);
+        result.add("episodes", episodes);
+        result.add("sources", sources);
+        return result;
+    }
+
+    private static JsonArray parsePlaySources(Document doc) {
+        JsonArray result = new JsonArray();
+        java.util.List<String> names = new java.util.ArrayList<>();
+        for (Element tab : doc.select(".module-tab-item,.module-tab-title,[class*=play] [class*=tab-item]")) {
+            String name = clean(tab.text());
+            if (!name.isEmpty() && !names.contains(name)) names.add(name);
+        }
+
+        Set<String> signatures = new LinkedHashSet<>();
+        int sourceIndex = 0;
+        for (Element container : doc.select(".module-play-list,.module-play-list-content,[class*=playlist],[class*=play-list]")) {
+            JsonArray episodes = parseEpisodes(container, "a[href*='/play/'],a[href*='/vodplay/'],a[href]");
+            if (episodes.size() == 0) continue;
+            StringBuilder signature = new StringBuilder();
+            for (int i = 0; i < episodes.size(); i++) {
+                signature.append(episodes.get(i).getAsJsonObject().get("url").getAsString()).append('|');
+            }
+            if (!signatures.add(signature.toString())) continue;
+
+            String name = sourceIndex < names.size() ? names.get(sourceIndex) : "线路" + (sourceIndex + 1);
+            JsonObject source = new JsonObject();
+            source.addProperty("name", name);
+            source.add("episodes", episodes);
+            result.add(source);
+            sourceIndex++;
+        }
+        return result;
+    }
+
+    private static JsonArray parseEpisodes(Element root, String selector) {
         JsonArray episodes = new JsonArray();
         Set<String> seen = new LinkedHashSet<>();
-        for (Element link : doc.select("a[href*='/play/'],a[href*='/vodplay/'],[class*=playlist] a[href],[class*=play-list] a[href]")) {
+        for (Element link : root.select(selector)) {
             String href = absolute(link, "href");
             String episodeName = clean(link.text());
-            if (href.isEmpty() || episodeName.isEmpty() || !seen.add(href)) continue;
+            if (href.isEmpty() || episodeName.isEmpty() || href.startsWith("javascript:") || !seen.add(href)) continue;
+            if (!href.contains("/play/") && !href.contains("/vodplay/")) continue;
             JsonObject episode = new JsonObject();
             episode.addProperty("name", episodeName);
             episode.addProperty("url", href);
             episodes.add(episode);
         }
-        JsonObject result = new JsonObject();
-        result.addProperty("source", finalUrl);
-        result.add("vod", vod);
-        result.add("episodes", episodes);
-        return result;
+        return episodes;
     }
 
     public static JsonObject playFromHtml(String finalUrl, String html) {
