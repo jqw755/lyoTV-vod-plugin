@@ -244,6 +244,7 @@ public final class HhkanService {
             result.addProperty("keyword", word);
             result.addProperty("source", response.request().url().toString());
             result.add("list", parseCards(resultDoc, 60));
+            result.addProperty("next", findNextPage(resultDoc));
             return result;
         }
     }
